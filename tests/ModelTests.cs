@@ -41,10 +41,10 @@ namespace Models.Tests
 
             Data.Data entity = new(world, "cube.fbx", objFbx);
             Model model = new(world, "cube.fbx");
-            Assert.That(model.MeshCount, Is.EqualTo(1));
-            Mesh mesh = model[0];
-            Assert.That(mesh.VertexCount, Is.EqualTo(24));
-            (Vector3 min, Vector3 max) bounds = mesh.Bounds;
+            Assert.That(model.GetMeshCount(), Is.EqualTo(1));
+            Mesh mesh = model.GetMesh(0);
+            Assert.That(mesh.GetVertexCount(), Is.EqualTo(24));
+            (Vector3 min, Vector3 max) bounds = mesh.GetBounds();
             Assert.That(bounds.min, Is.EqualTo(new Vector3(-1, -1, -1)));
             Assert.That(bounds.max, Is.EqualTo(new Vector3(1, 1, 1)));
         }

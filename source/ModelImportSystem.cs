@@ -51,15 +51,15 @@ namespace Models.Systems
             }
         }
 
-        private void UpdateModel(EntityID entity)
+        private void UpdateModel(eint entity)
         {
-            if (!world.ContainsCollection<ModelMesh>(entity))
+            if (!world.ContainsList<ModelMesh>(entity))
             {
-                world.CreateCollection<ModelMesh>(entity);
+                world.CreateList<ModelMesh>(entity);
             }
 
-            UnmanagedList<ModelMesh> meshes = world.GetCollection<ModelMesh>(entity);
-            UnmanagedList<byte> byteData = world.GetCollection<byte>(entity);
+            UnmanagedList<ModelMesh> meshes = world.GetList<ModelMesh>(entity);
+            UnmanagedList<byte> byteData = world.GetList<byte>(entity);
             uint meshesImported = ImportModel(entity, meshes, byteData.AsSpan());
 
             //destroy meshes that werent used (remaining)
@@ -68,7 +68,7 @@ namespace Models.Systems
                 uint remainingMeshes = meshes.Count - meshesImported;
                 for (uint i = 0; i < remainingMeshes; i++)
                 {
-                    EntityID meshEntity = meshes[meshesImported + i].value;
+                    eint meshEntity = meshes[meshesImported + i].value;
                     world.DestroyEntity(meshEntity);
                 }
             }
@@ -77,7 +77,7 @@ namespace Models.Systems
         /// <summary>
         /// Updates the model so that its list of <see cref="ModelMesh"/> elements point to the latest mesh data.
         /// </summary>
-        private unsafe uint ImportModel(EntityID entity, UnmanagedList<ModelMesh> meshes, Span<byte> bytes)
+        private unsafe uint ImportModel(eint entity, UnmanagedList<ModelMesh> meshes, Span<byte> bytes)
         {
             uint meshIndex = 0;
             fixed (byte* ptr = bytes)
@@ -95,7 +95,7 @@ namespace Models.Systems
                 ProcessNode(entity, scene->MRootNode, scene, ref meshIndex);
                 return meshIndex;
 
-                void ProcessNode(EntityID parentEntity, Node* node, Scene* scene, ref uint meshIndex)
+                void ProcessNode(eint parentEntity, Node* node, Scene* scene, ref uint meshIndex)
                 {
                     for (int i = 0; i < node->MNumMeshes; i++)
                     {
@@ -110,9 +110,9 @@ namespace Models.Systems
                     }
                 }
 
-                void ProcessMesh(EntityID parentEntity, Mesh* mesh, Scene* scene, uint meshIndex)
+                void ProcessMesh(eint parentEntity, Mesh* mesh, Scene* scene, uint meshIndex)
                 {
-                    EntityID meshEntity;
+                    eint meshEntity;
                     bool meshReused = meshIndex < meshes.Count;
                     if (meshReused)
                     {
@@ -197,12 +197,12 @@ namespace Models.Systems
                     if (positions is not null)
                     {
                         uint faceCount = mesh->MNumFaces;
-                        if (!world.ContainsCollection<uint>(meshEntity))
+                        if (!world.ContainsList<uint>(meshEntity))
                         {
-                            world.CreateCollection<uint>(meshEntity);
+                            world.CreateList<uint>(meshEntity);
                         }
 
-                        world.ClearCollection<uint>(meshEntity);
+                        world.ClearList<uint>(meshEntity);
                         for (int i = 0; i < faceCount; i++)
                         {
                             Face face = mesh->MFaces[i];
@@ -232,11 +232,11 @@ namespace Models.Systems
             }
         }
 
-        private Span<T> GetOrCreateCollectionAsSpan<T>(EntityID meshEntity, uint count) where T : unmanaged
+        private Span<T> GetOrCreateCollectionAsSpan<T>(eint meshEntity, uint count) where T : unmanaged
         {
-            if (world.ContainsCollection<T>(meshEntity))
+            if (world.ContainsList<T>(meshEntity))
             {
-                UnmanagedList<T> list = world.GetCollection<T>(meshEntity);
+                UnmanagedList<T> list = world.GetList<T>(meshEntity);
                 list.Clear(count);
                 list.AddDefault(count);
                 return list.AsSpan();
@@ -249,41 +249,41 @@ namespace Models.Systems
             }
         }
 
-        private unsafe void ClearMesh(EntityID meshEntity)
+        private unsafe void ClearMesh(eint meshEntity)
         {
-            if (world.ContainsCollection<uint>(meshEntity))
+            if (world.ContainsList<uint>(meshEntity))
             {
-                world.ClearCollection<uint>(meshEntity);
+                world.ClearList<uint>(meshEntity);
             }
 
-            if (world.ContainsCollection<MeshVertexPosition>(meshEntity))
+            if (world.ContainsList<MeshVertexPosition>(meshEntity))
             {
-                world.ClearCollection<MeshVertexPosition>(meshEntity);
+                world.ClearList<MeshVertexPosition>(meshEntity);
             }
 
-            if (world.ContainsCollection<MeshVertexUV>(meshEntity))
+            if (world.ContainsList<MeshVertexUV>(meshEntity))
             {
-                world.ClearCollection<MeshVertexUV>(meshEntity);
+                world.ClearList<MeshVertexUV>(meshEntity);
             }
 
-            if (world.ContainsCollection<MeshVertexNormal>(meshEntity))
+            if (world.ContainsList<MeshVertexNormal>(meshEntity))
             {
-                world.ClearCollection<MeshVertexNormal>(meshEntity);
+                world.ClearList<MeshVertexNormal>(meshEntity);
             }
 
-            if (world.ContainsCollection<MeshVertexTangent>(meshEntity))
+            if (world.ContainsList<MeshVertexTangent>(meshEntity))
             {
-                world.ClearCollection<MeshVertexTangent>(meshEntity);
+                world.ClearList<MeshVertexTangent>(meshEntity);
             }
 
-            if (world.ContainsCollection<MeshVertexBitangent>(meshEntity))
+            if (world.ContainsList<MeshVertexBitangent>(meshEntity))
             {
-                world.ClearCollection<MeshVertexBitangent>(meshEntity);
+                world.ClearList<MeshVertexBitangent>(meshEntity);
             }
 
-            if (world.ContainsCollection<MeshVertexColor>(meshEntity))
+            if (world.ContainsList<MeshVertexColor>(meshEntity))
             {
-                world.ClearCollection<MeshVertexColor>(meshEntity);
+                world.ClearList<MeshVertexColor>(meshEntity);
             }
         }
     }
