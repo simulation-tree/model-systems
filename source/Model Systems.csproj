@@ -6,10 +6,12 @@
 		<ImplicitUsings>disable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<NoStandardLibraries>true</NoStandardLibraries>
+		<NoStdLib>true</NoStdLib>
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Silk.NET.Assimp" Version="2.21.0" />
+	  <PackageReference Include="Silk.NET.Assimp" Version="2.21.0" />
 	</ItemGroup>
 
 	<ItemGroup>

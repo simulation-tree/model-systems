@@ -9,7 +9,7 @@ using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using Unmanaged.Collections;
-using Mesh = Silk.NET.Assimp.Mesh;
+using Mesh = Silk.NET.Assimp.Mesh; //todo: replace with a minimized wrapper that doesnt depend on net core
 
 namespace Models.Systems
 {
