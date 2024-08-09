@@ -39,7 +39,7 @@ namespace Models.Systems
 
         private void UpdateModels()
         {
-            modelQuery.Fill();
+            modelQuery.Update();
             foreach (Query<IsModel>.Result result in modelQuery)
             {
                 ref IsModel model = ref result.Component1;
