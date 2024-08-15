@@ -1,9 +1,10 @@
-﻿using Meshes;
+﻿using Data;
+using Data.Systems;
+using Meshes;
 using Models.Systems;
 using Simulation;
 using System.Numerics;
 using Unmanaged;
-using Data.Systems;
 
 namespace Models.Tests
 {
@@ -39,7 +40,7 @@ namespace Models.Tests
             using DataImportSystem resourceImports = new(world);
             using ModelImportSystem modelImports = new(world);
 
-            Data.Data entity = new(world, "cube.fbx", objFbx);
+            DataSource entity = new(world, "cube.fbx", objFbx);
             Model model = new(world, "cube.fbx");
             Assert.That(model.GetMeshCount(), Is.EqualTo(1));
             Mesh mesh = model.GetMesh(0);
