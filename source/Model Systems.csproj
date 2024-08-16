@@ -8,6 +8,8 @@
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<NoStandardLibraries>true</NoStandardLibraries>
 		<NoStdLib>true</NoStdLib>
+		<BaseOutputPath>bin~\</BaseOutputPath>
+		<BaseIntermediateOutputPath>obj~\</BaseIntermediateOutputPath>
 	</PropertyGroup>
 
 	<ItemGroup>
