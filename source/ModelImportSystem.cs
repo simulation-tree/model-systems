@@ -17,16 +17,19 @@ namespace Models.Systems
     {
         private readonly Assimp library;
         private readonly Query<IsModel> modelQuery;
+        private readonly Query<IsDataRequest, IsMeshRequest> meshQuery;
 
         public ModelImportSystem(World world) : base(world)
         {
             library = Assimp.GetApi();
             modelQuery = new(world);
+            meshQuery = new(world);
             Subscribe<ModelUpdate>(Update);
         }
 
         public override void Dispose()
         {
+            meshQuery.Dispose();
             modelQuery.Dispose();
             library.Dispose();
             base.Dispose();
@@ -40,15 +43,35 @@ namespace Models.Systems
         private void UpdateModels()
         {
             modelQuery.Update();
-            foreach (Query<IsModel>.Result result in modelQuery)
+            foreach (var x in modelQuery)
             {
-                ref IsModel model = ref result.Component1;
+                ref IsModel model = ref x.Component1;
                 if (model.changed)
                 {
                     model.changed = false;
-                    UpdateModel(result.entity);
+                    UpdateModel(x.entity);
                 }
             }
+
+            meshQuery.Update();
+            foreach (var x in meshQuery)
+            {
+                ref IsMeshRequest request = ref x.Component2;
+                if (request.changed)
+                {
+                    request.changed = false;
+                    UpdateMesh(x.entity, request.meshIndex);
+                }
+            }
+        }
+
+        private void UpdateMesh(eint entity, uint meshIndex)
+        {
+            UpdateModel(entity);
+            UnmanagedList<ModelMesh> meshes = world.GetList<ModelMesh>(entity);
+            eint mesh = meshes[meshIndex].value;
+            world.CopyComponentsTo(mesh, world, entity);
+            world.CopyListsTo(mesh, world, entity);
         }
 
         private void UpdateModel(eint entity)
