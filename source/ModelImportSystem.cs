@@ -239,7 +239,7 @@ namespace Models.Systems
                             for (int j = 0; j < face.MNumIndices; j++)
                             {
                                 uint index = face.MIndices[j];
-                                world.AddToCollection(meshEntity, index);
+                                world.AddToList(meshEntity, index);
                             }
                         }
                     }
@@ -273,7 +273,7 @@ namespace Models.Systems
             }
             else
             {
-                UnmanagedList<T> list = world.CreateCollection<T>(meshEntity, count);
+                UnmanagedList<T> list = world.CreateList<T>(meshEntity, count);
                 list.AddDefault(count);
                 return list.AsSpan();
             }
