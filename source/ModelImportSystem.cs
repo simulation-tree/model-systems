@@ -1,4 +1,5 @@
 ﻿using Data.Components;
+using Data.Events;
 using Meshes;
 using Meshes.Components;
 using Models.Components;
@@ -24,6 +25,7 @@ namespace Models.Systems
             library = Assimp.GetApi();
             modelQuery = new(world);
             meshQuery = new(world);
+            Subscribe<DataUpdate>(Update);
             Subscribe<ModelUpdate>(Update);
         }
 
@@ -33,6 +35,11 @@ namespace Models.Systems
             modelQuery.Dispose();
             library.Dispose();
             base.Dispose();
+        }
+
+        private void Update(DataUpdate e)
+        {
+            UpdateModels();
         }
 
         private void Update(ModelUpdate e)
