@@ -1,16 +1,19 @@
 ﻿using Data;
+using Data.Events;
 using Data.Systems;
 using Meshes;
+using Models.Events;
 using Models.Systems;
 using Simulation;
 using System.Numerics;
+using System.Threading;
 using Unmanaged;
 
 namespace Models.Tests
 {
     public class ModelTests
     {
-        //dont expand this out, its a cube exported from blender into fbx
+        //dont expand this out, its an fbx cube exported from blender
         private static readonly byte[] objFbx =
         [
             75,97,121,100,97,114,97,32,70,66,88,32,66,105,110,97,114,121,32,32,0,26,0,232,28,0,0,150,7,0,0,0,0,0,0,0,0,0,0,18,70,66,88,72,101,
@@ -33,8 +36,15 @@ namespace Models.Tests
             Allocations.ThrowIfAny();
         }
 
-        [Test]
-        public void ImportSimpleCube()
+        private void Simulate(World world)
+        {
+            world.Submit(new DataUpdate());
+            world.Submit(new ModelUpdate());
+            world.Poll();
+        }
+
+        [Test, CancelAfter(1000)]
+        public void ImportSimpleCube(CancellationToken cancellation)
         {
             using World world = new();
             using DataImportSystem resourceImports = new(world);
@@ -42,10 +52,38 @@ namespace Models.Tests
 
             DataSource entity = new(world, "cube.fbx", objFbx);
             Model model = new(world, "cube.fbx");
-            Assert.That(model.GetMeshCount(), Is.EqualTo(1));
-            Mesh mesh = model.GetMesh(0);
-            Assert.That(mesh.GetVertexCount(), Is.EqualTo(24));
+            while (!model.IsLoaded)
+            {
+                cancellation.ThrowIfCancellationRequested();
+                Simulate(world);
+            }
+
+            Assert.That(model.MeshCount, Is.EqualTo(1));
+            Mesh mesh = model[0];
+            Assert.That(mesh.VertexCount, Is.EqualTo(24));
             (Vector3 min, Vector3 max) bounds = mesh.GetBounds();
+            Assert.That(bounds.min, Is.EqualTo(new Vector3(-1, -1, -1)));
+            Assert.That(bounds.max, Is.EqualTo(new Vector3(1, 1, 1)));
+        }
+
+        [Test, CancelAfter(1000)]
+        public void ImportThroughMeshRequest(CancellationToken cancellation)
+        {
+            using World world = new();
+            using DataImportSystem resourceImports = new(world);
+            using ModelImportSystem modelImports = new(world);
+
+            DataSource entity = new(world, "cube.fbx", objFbx);
+            Model cubeModel = new(world, "cube.fbx");
+            Mesh cubeMesh = new(world, cubeModel);
+            while (!cubeMesh.IsLoaded)
+            {
+                cancellation.ThrowIfCancellationRequested();
+                Simulate(world);
+            }
+
+            Assert.That(cubeMesh.VertexCount, Is.EqualTo(24));
+            (Vector3 min, Vector3 max) bounds = cubeMesh.GetBounds();
             Assert.That(bounds.min, Is.EqualTo(new Vector3(-1, -1, -1)));
             Assert.That(bounds.max, Is.EqualTo(new Vector3(1, 1, 1)));
         }
