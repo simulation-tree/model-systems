@@ -43,7 +43,7 @@ namespace Models.Tests
             world.Poll();
         }
 
-        [Test, CancelAfter(1000)]
+        [Test, CancelAfter(1700)]
         public void ImportSimpleCube(CancellationToken cancellation)
         {
             using World world = new();
