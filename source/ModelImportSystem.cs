@@ -147,7 +147,7 @@ namespace Models.Systems
 
             Model model = new(world, modelEntity);
             Mesh existingMesh = model[index];
-            eint existingMeshEntity = ((Entity)existingMesh).value;
+            Entity existingMeshEntity = existingMesh;
             Operation operation = new();
             operation.SelectEntity(meshEntity);
 
