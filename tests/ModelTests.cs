@@ -52,7 +52,7 @@ namespace Models.Tests
 
             DataSource entity = new(world, "cube.fbx", objFbx);
             Model model = new(world, "cube.fbx");
-            while (!model.IsLoaded)
+            while (!model.Is())
             {
                 cancellation.ThrowIfCancellationRequested();
                 Simulate(world);
@@ -76,7 +76,7 @@ namespace Models.Tests
             DataSource entity = new(world, "cube.fbx", objFbx);
             Model cubeModel = new(world, "cube.fbx");
             Mesh cubeMesh = new(world, cubeModel);
-            while (!cubeMesh.IsLoaded)
+            while (!cubeMesh.Is())
             {
                 cancellation.ThrowIfCancellationRequested();
                 Simulate(world);
