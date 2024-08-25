@@ -89,7 +89,7 @@ namespace Models.Systems
                     //ThreadPool.QueueUserWorkItem(UpdateMeshReferencesOnModelEntity, modelEntity, false);
                     if (TryFinishModelRequest(modelEntity))
                     {
-                        modelVersions[modelEntity] = request.version;
+                        modelVersions.AddOrSet(modelEntity, request.version);
                     }
                 }
             }
@@ -117,7 +117,7 @@ namespace Models.Systems
                     //ThreadPool.QueueUserWorkItem(UpdateMesh, (meshEntity, request), false);
                     if (TryFinishMeshRequest((meshEntity, request)))
                     {
-                        meshVersions[meshEntity] = request.version;
+                        meshVersions.AddOrSet(meshEntity, request.version);
                     }
                 }
             }
@@ -153,8 +153,6 @@ namespace Models.Systems
 
             if (world.TryGetComponent(meshEntity, out IsMesh component))
             {
-                //reset existing mesh that is requesting data again
-                ResetMesh(ref operation, meshEntity);
                 component.version++;
                 operation.SetComponent(component);
                 operation.SetComponent(new Name(existingMesh.Name));
@@ -163,76 +161,83 @@ namespace Models.Systems
             {
                 //become a mesh now!
                 operation.AddComponent(new IsMesh());
-                operation.CreateList<uint>();
+                operation.CreateArray<uint>(0);
 
                 if (existingMesh.HasPositions)
                 {
-                    operation.CreateList<MeshVertexPosition>();
+                    operation.CreateArray<MeshVertexPosition>(0);
                 }
 
                 if (existingMesh.HasUVs)
                 {
-                    operation.CreateList<MeshVertexUV>();
+                    operation.CreateArray<MeshVertexUV>(0);
                 }
 
                 if (existingMesh.HasNormals)
                 {
-                    operation.CreateList<MeshVertexNormal>();
+                    operation.CreateArray<MeshVertexNormal>(0);
                 }
 
                 if (existingMesh.HasTangents)
                 {
-                    operation.CreateList<MeshVertexTangent>();
+                    operation.CreateArray<MeshVertexTangent>(0);
                 }
 
                 if (existingMesh.HasBiTangents)
                 {
-                    operation.CreateList<MeshVertexBiTangent>();
+                    operation.CreateArray<MeshVertexBiTangent>(0);
                 }
 
                 if (existingMesh.HasColors)
                 {
-                    operation.CreateList<MeshVertexColor>();
+                    operation.CreateArray<MeshVertexColor>(0);
                 }
             }
 
             //copy each channel
             if (existingMesh.HasPositions)
             {
-                UnmanagedList<MeshVertexPosition> positions = world.GetList<MeshVertexPosition>(existingMeshEntity);
-                UnmanagedList<uint> indices = world.GetList<uint>(existingMeshEntity);
-                operation.AppendToList<MeshVertexPosition>(positions.AsSpan());
-                operation.AppendToList<uint>(indices.AsSpan());
+                Span<MeshVertexPosition> positions = world.GetArray<MeshVertexPosition>(existingMeshEntity);
+                Span<uint> indices = world.GetArray<uint>(existingMeshEntity);
+                operation.ResizeArray<uint>((uint)indices.Length);
+                operation.SetArrayElement(0, indices);
+                operation.ResizeArray<MeshVertexPosition>((uint)positions.Length);
+                operation.SetArrayElement(0, positions);
             }
 
             if (existingMesh.HasUVs)
             {
-                UnmanagedList<MeshVertexUV> uvs = world.GetList<MeshVertexUV>(existingMeshEntity);
-                operation.AppendToList<MeshVertexUV>(uvs.AsSpan());
+                Span<MeshVertexUV> uvs = world.GetArray<MeshVertexUV>(existingMeshEntity);
+                operation.ResizeArray<MeshVertexUV>((uint)uvs.Length);
+                operation.SetArrayElement(0, uvs);
             }
 
             if (existingMesh.HasNormals)
             {
-                UnmanagedList<MeshVertexNormal> normals = world.GetList<MeshVertexNormal>(existingMeshEntity);
-                operation.AppendToList<MeshVertexNormal>(normals.AsSpan());
+                Span<MeshVertexNormal> normals = world.GetArray<MeshVertexNormal>(existingMeshEntity);
+                operation.ResizeArray<MeshVertexNormal>((uint)normals.Length);
+                operation.SetArrayElement(0, normals);
             }
 
             if (existingMesh.HasTangents)
             {
-                UnmanagedList<MeshVertexTangent> tangents = world.GetList<MeshVertexTangent>(existingMeshEntity);
-                operation.AppendToList<MeshVertexTangent>(tangents.AsSpan());
+                Span<MeshVertexTangent> tangents = world.GetArray<MeshVertexTangent>(existingMeshEntity);
+                operation.ResizeArray<MeshVertexTangent>((uint)tangents.Length);
+                operation.SetArrayElement(0, tangents);
             }
 
             if (existingMesh.HasBiTangents)
             {
-                UnmanagedList<MeshVertexBiTangent> bitangents = world.GetList<MeshVertexBiTangent>(existingMeshEntity);
-                operation.AppendToList<MeshVertexBiTangent>(bitangents.AsSpan());
+                Span<MeshVertexBiTangent> bitangents = world.GetArray<MeshVertexBiTangent>(existingMeshEntity);
+                operation.ResizeArray<MeshVertexBiTangent>((uint)bitangents.Length);
+                operation.SetArrayElement(0, bitangents);
             }
 
             if (existingMesh.HasColors)
             {
-                UnmanagedList<MeshVertexColor> colors = world.GetList<MeshVertexColor>(existingMeshEntity);
-                operation.AppendToList<MeshVertexColor>(colors.AsSpan());
+                Span<MeshVertexColor> colors = world.GetArray<MeshVertexColor>(existingMeshEntity);
+                operation.ResizeArray<MeshVertexColor>((uint)colors.Length);
+                operation.SetArrayElement(0, colors);
             }
 
             operations.Enqueue(operation);
@@ -242,14 +247,14 @@ namespace Models.Systems
         private bool TryFinishModelRequest(eint modelEntity)
         {
             //wait for byte data to be available
-            if (!world.ContainsList<byte>(modelEntity))
+            if (!world.ContainsArray<byte>(modelEntity))
             {
                 return false;
             }
 
             Operation operation = new();
-            UnmanagedList<byte> byteData = world.GetList<byte>(modelEntity);
-            ImportModel(modelEntity, ref operation, byteData.AsSpan());
+            Span<byte> byteData = world.GetArray<byte>(modelEntity);
+            ImportModel(modelEntity, ref operation, byteData);
 
             operation.ClearSelection();
             operation.SelectEntity(modelEntity);
@@ -269,7 +274,6 @@ namespace Models.Systems
 
         private unsafe uint ImportModel(eint modelEntity, ref Operation operation, Span<byte> bytes)
         {
-            uint meshIndex = 0;
             fixed (byte* ptr = bytes)
             {
                 uint pLength = (uint)bytes.Length;
@@ -282,33 +286,40 @@ namespace Models.Systems
                     throw new Exception(library.GetErrorStringS());
                 }
 
-                uint existingMeshCount = world.GetListLength<ModelMesh>(modelEntity, out bool contains);
+                bool containsMeshes = world.ContainsArray<ModelMesh>(modelEntity);
+                uint existingMeshCount = containsMeshes ? world.GetArrayLength<ModelMesh>(modelEntity) : 0;
                 operation.SelectEntity(modelEntity);
-                if (!contains)
+                uint referenceCount = world.GetReferenceCount(modelEntity);
+                using UnmanagedList<ModelMesh> meshes = new();
+                ProcessNode(scene->MRootNode, scene, ref operation);
+                operation.SelectEntity(modelEntity);
+                if (containsMeshes)
                 {
-                    operation.CreateList<ModelMesh>();
+                    operation.ResizeArray<ModelMesh>(meshes.Count);
+                    operation.SetArrayElement(0, meshes.AsSpan());
+                }
+                else
+                {
+                    operation.CreateArray<ModelMesh>(meshes.AsSpan());
                 }
 
-                uint referenceCount = world.GetReferenceCount(modelEntity);
-                ProcessNode(scene->MRootNode, scene, ref operation, ref meshIndex);
-                return meshIndex;
+                return meshes.Count;
 
-                void ProcessNode(AssimpNode* node, AssimpScene* scene, ref Operation operation, ref uint meshIndex)
+                void ProcessNode(AssimpNode* node, AssimpScene* scene, ref Operation operation)
                 {
                     for (int i = 0; i < node->MNumMeshes; i++)
                     {
                         AssimpMesh* mesh = scene->MMeshes[node->MMeshes[i]];
-                        ProcessMesh(mesh, scene, ref operation, meshIndex);
-                        meshIndex++;
+                        ProcessMesh(mesh, scene, ref operation, meshes);
                     }
 
                     for (int i = 0; i < node->MNumChildren; i++)
                     {
-                        ProcessNode(node->MChildren[i], scene, ref operation, ref meshIndex);
+                        ProcessNode(node->MChildren[i], scene, ref operation);
                     }
                 }
 
-                void ProcessMesh(AssimpMesh* mesh, AssimpScene* scene, ref Operation operation, uint meshIndex)
+                void ProcessMesh(AssimpMesh* mesh, AssimpScene* scene, ref Operation operation, UnmanagedList<ModelMesh> meshes)
                 {
                     uint vertexCount = mesh->MNumVertices;
                     Vector3* positions = mesh->MVertices;
@@ -320,17 +331,19 @@ namespace Models.Systems
 
                     //todo: accuracy: should reuse based on mesh name rather than index within the list, because the amount of meshes
                     //in the source asset could change, and could possibly shift around in order
+                    uint meshIndex = meshes.Count;
                     var name = mesh->MName;
                     bool meshReused = meshIndex < existingMeshCount;
                     eint existingMesh = default;
+                    ModelMesh modelMesh;
                     if (meshReused)
                     {
                         //reset existing mesh
-                        rint existingMeshReference = world.GetListElement<ModelMesh>(modelEntity, meshIndex).value;
+                        rint existingMeshReference = world.GetArrayElement<ModelMesh>(modelEntity, meshIndex).value;
                         existingMesh = world.GetReference(modelEntity, existingMeshReference);
                         operation.SelectEntity(existingMesh);
-                        ResetMesh(ref operation, existingMesh);
                         operation.SetComponent(new Name(name.AsString));
+                        modelMesh = new(existingMeshReference);
                     }
                     else
                     {
@@ -338,53 +351,57 @@ namespace Models.Systems
                         operation.ClearSelection();
                         operation.CreateEntity();
                         operation.SetParent(modelEntity);
-                        operation.CreateList<uint>();
+                        operation.CreateArray<uint>(0);
                         operation.AddComponent(new Name(name.AsString));
 
                         //reference the created mesh
                         operation.ClearSelection();
                         operation.SelectEntity(modelEntity);
                         operation.AddReference(0);
-                        operation.AppendToList(new ModelMesh((rint)(referenceCount + meshIndex + 1)));
+                        rint newReference = (rint)(referenceCount + meshIndex + 1);
+                        modelMesh = new(newReference);
 
                         //select the created mesh again
                         operation.SelectEntity(0);
 
                         if (positions is not null)
                         {
-                            operation.CreateList<MeshVertexPosition>();
+                            operation.CreateArray<MeshVertexPosition>(0);
                         }
 
                         if (uvs is not null)
                         {
-                            operation.CreateList<MeshVertexUV>();
+                            operation.CreateArray<MeshVertexUV>(0);
                         }
 
                         if (normals is not null)
                         {
-                            operation.CreateList<MeshVertexNormal>();
+                            operation.CreateArray<MeshVertexNormal>(0);
                         }
 
                         if (tangents is not null)
                         {
-                            operation.CreateList<MeshVertexTangent>();
+                            operation.CreateArray<MeshVertexTangent>(0);
                         }
 
                         if (bitangents is not null)
                         {
-                            operation.CreateList<MeshVertexBiTangent>();
+                            operation.CreateArray<MeshVertexBiTangent>(0);
                         }
 
                         if (colors is not null)
                         {
-                            operation.CreateList<MeshVertexColor>();
+                            operation.CreateArray<MeshVertexColor>(0);
                         }
                     }
+
+                    meshes.Add(modelMesh);
 
                     //fill in data
                     if (positions is not null)
                     {
-                        operation.AppendToList<MeshVertexPosition>(positions, vertexCount);
+                        operation.ResizeArray<MeshVertexPosition>((uint)vertexCount);
+                        operation.SetArrayElement(0, new Span<MeshVertexPosition>(positions, (int)vertexCount));
                         uint faceCount = mesh->MNumFaces;
                         using UnmanagedList<uint> indices = new();
                         for (int i = 0; i < faceCount; i++)
@@ -397,7 +414,8 @@ namespace Models.Systems
                             }
                         }
 
-                        operation.AppendToList<uint>(indices.AsSpan());
+                        operation.ResizeArray<uint>((uint)indices.Count);
+                        operation.SetArrayElement(0, indices.AsSpan());
                     }
 
                     if (uvs is not null)
@@ -410,27 +428,32 @@ namespace Models.Systems
                             uvSpan[i] = new MeshVertexUV(new(raw.X, raw.Y));
                         }
 
-                        operation.AppendToList<MeshVertexUV>(uvSpan.AsSpan());
+                        operation.ResizeArray<MeshVertexUV>((uint)vertexCount);
+                        operation.SetArrayElement(0, uvSpan.AsSpan());
                     }
 
                     if (normals is not null)
                     {
-                        operation.AppendToList<MeshVertexNormal>(normals, vertexCount);
+                        operation.ResizeArray<MeshVertexNormal>((uint)vertexCount);
+                        operation.SetArrayElement(0, new Span<MeshVertexNormal>(normals, (int)vertexCount));
                     }
 
                     if (tangents is not null)
                     {
-                        operation.AppendToList<MeshVertexTangent>(tangents, vertexCount);
+                        operation.ResizeArray<MeshVertexTangent>((uint)vertexCount);
+                        operation.SetArrayElement(0, new Span<MeshVertexTangent>(tangents, (int)vertexCount));
                     }
 
                     if (bitangents is not null)
                     {
-                        operation.AppendToList<MeshVertexBiTangent>(bitangents, vertexCount);
+                        operation.ResizeArray<MeshVertexBiTangent>((uint)vertexCount);
+                        operation.SetArrayElement(0, new Span<MeshVertexBiTangent>(bitangents, (int)vertexCount));
                     }
 
                     if (colors is not null)
                     {
-                        operation.AppendToList<MeshVertexColor>(colors, vertexCount);
+                        operation.ResizeArray<MeshVertexColor>((uint)vertexCount);
+                        operation.SetArrayElement(0, new Span<MeshVertexColor>(colors, (int)vertexCount));
                     }
 
                     var material = scene->MMaterials[mesh->MMaterialIndex];
@@ -457,42 +480,6 @@ namespace Models.Systems
                         operation.AddComponent(new IsMesh());
                     }
                 }
-            }
-        }
-
-        /// <summary>
-        /// Operations to reset the existing mesh entity to defaults.
-        /// </summary>
-        private unsafe void ResetMesh(ref Operation operation, eint meshEntity)
-        {
-            if (world.GetListLength<MeshVertexPosition>(meshEntity) > 0)
-            {
-                operation.ClearList<MeshVertexPosition>();
-            }
-
-            if (world.GetListLength<MeshVertexUV>(meshEntity) > 0)
-            {
-                operation.ClearList<MeshVertexUV>();
-            }
-
-            if (world.GetListLength<MeshVertexNormal>(meshEntity) > 0)
-            {
-                operation.ClearList<MeshVertexNormal>();
-            }
-
-            if (world.GetListLength<MeshVertexTangent>(meshEntity) > 0)
-            {
-                operation.ClearList<MeshVertexTangent>();
-            }
-
-            if (world.GetListLength<MeshVertexBiTangent>(meshEntity) > 0)
-            {
-                operation.ClearList<MeshVertexBiTangent>();
-            }
-
-            if (world.GetListLength<MeshVertexColor>(meshEntity) > 0)
-            {
-                operation.ClearList<MeshVertexColor>();
             }
         }
     }
