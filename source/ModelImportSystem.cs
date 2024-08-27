@@ -249,6 +249,7 @@ namespace Models.Systems
             //wait for byte data to be available
             if (!world.ContainsArray<byte>(modelEntity))
             {
+                Console.WriteLine($"Model data not available on entity {modelEntity}, waiting");
                 return false;
             }
 
