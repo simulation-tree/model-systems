@@ -27,8 +27,8 @@ namespace Models.Systems
         private readonly Query<IsModelRequest> modelRequestQuery;
         private readonly Query<IsMeshRequest> meshRequestQuery;
         private readonly Query<IsModel> modelQuery;
-        private readonly UnmanagedDictionary<eint, uint> modelVersions;
-        private readonly UnmanagedDictionary<eint, uint> meshVersions;
+        private readonly UnmanagedDictionary<uint, uint> modelVersions;
+        private readonly UnmanagedDictionary<uint, uint> meshVersions;
         private readonly ConcurrentQueue<Operation> operations;
 
         public ModelImportSystem(World world) : base(world)
@@ -74,7 +74,7 @@ namespace Models.Systems
             {
                 IsModelRequest request = x.Component1;
                 bool sourceChanged = false;
-                eint modelEntity = x.entity;
+                uint modelEntity = x.entity;
                 if (!modelVersions.ContainsKey(modelEntity))
                 {
                     sourceChanged = true;
@@ -102,7 +102,7 @@ namespace Models.Systems
             {
                 IsMeshRequest request = x.Component1;
                 bool sourceChanged = false;
-                eint meshEntity = x.entity;
+                uint meshEntity = x.entity;
                 if (!meshVersions.ContainsKey(meshEntity))
                 {
                     sourceChanged = true;
@@ -132,12 +132,12 @@ namespace Models.Systems
             }
         }
 
-        private bool TryFinishMeshRequest((eint entity, IsMeshRequest request) input)
+        private bool TryFinishMeshRequest((uint entity, IsMeshRequest request) input)
         {
-            eint meshEntity = input.entity;
+            uint meshEntity = input.entity;
             uint index = input.request.meshIndex;
             rint modelReference = input.request.modelReference;
-            eint modelEntity = world.GetReference(meshEntity, modelReference);
+            uint modelEntity = world.GetReference(meshEntity, modelReference);
 
             //wait for model data to load
             if (!world.ContainsComponent<IsModel>(modelEntity))
@@ -244,7 +244,7 @@ namespace Models.Systems
             return true;
         }
 
-        private bool TryFinishModelRequest(eint modelEntity)
+        private bool TryFinishModelRequest(uint modelEntity)
         {
             //wait for byte data to be available
             if (!world.ContainsArray<byte>(modelEntity))
@@ -273,7 +273,7 @@ namespace Models.Systems
             return true;
         }
 
-        private unsafe uint ImportModel(eint modelEntity, ref Operation operation, Span<byte> bytes)
+        private unsafe uint ImportModel(uint modelEntity, ref Operation operation, Span<byte> bytes)
         {
             fixed (byte* ptr = bytes)
             {
@@ -335,7 +335,7 @@ namespace Models.Systems
                     uint meshIndex = meshes.Count;
                     var name = mesh->MName;
                     bool meshReused = meshIndex < existingMeshCount;
-                    eint existingMesh = default;
+                    uint existingMesh = default;
                     ModelMesh modelMesh;
                     if (meshReused)
                     {
@@ -358,12 +358,12 @@ namespace Models.Systems
                         //reference the created mesh
                         operation.ClearSelection();
                         operation.SelectEntity(modelEntity);
-                        operation.AddReference(0);
+                        operation.AddReferenceTowardsPreviouslyCreatedEntity(0);
                         rint newReference = (rint)(referenceCount + meshIndex + 1);
                         modelMesh = new(newReference);
 
                         //select the created mesh again
-                        operation.SelectEntity(0);
+                        operation.SelectPreviouslyCreatedEntity(0);
 
                         if (positions is not null)
                         {
