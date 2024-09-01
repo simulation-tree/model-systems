@@ -340,7 +340,7 @@ namespace Models.Systems
                     if (meshReused)
                     {
                         //reset existing mesh
-                        rint existingMeshReference = world.GetArrayElement<ModelMesh>(modelEntity, meshIndex).value;
+                        rint existingMeshReference = world.GetArrayElementRef<ModelMesh>(modelEntity, meshIndex).value;
                         existingMesh = world.GetReference(modelEntity, existingMeshReference);
                         operation.SelectEntity(existingMesh);
                         operation.SetComponent(new Name(name.AsString));
