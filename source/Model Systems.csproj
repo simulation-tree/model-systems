@@ -7,13 +7,23 @@
 		<Nullable>enable</Nullable>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<NoStandardLibraries>true</NoStandardLibraries>
-		<NoStdLib>true</NoStdLib>
-		<BaseOutputPath>bin~\</BaseOutputPath>
-		<BaseIntermediateOutputPath>obj~\</BaseIntermediateOutputPath>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+	  <IsAotCompatible>True</IsAotCompatible>
+	  <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
+	  <WarningLevel>8</WarningLevel>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+	  <IsAotCompatible>True</IsAotCompatible>
+	  <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
+	  <WarningLevel>8</WarningLevel>
 	</PropertyGroup>
 
 	<ItemGroup>
 	  <PackageReference Include="Silk.NET.Assimp" Version="2.21.0" />
+	  <PackageReference Include="System.Text.Json" Version="9.0.0-preview.7.24405.7" />
 	</ItemGroup>
 
 	<ItemGroup>

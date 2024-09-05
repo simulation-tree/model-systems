@@ -15,6 +15,7 @@ using AssimpScene = Silk.NET.Assimp.Scene;
 using AssimpPostProcessSteps = Silk.NET.Assimp.PostProcessSteps;
 using AssimpPropertyStore = Silk.NET.Assimp.PropertyStore;
 using AssimpNode = Silk.NET.Assimp.Node;
+using AssimpFace = Silk.NET.Assimp.Face;
 using Assimp = Silk.NET.Assimp.Assimp;
 using AssimpOverloads = Silk.NET.Assimp.AssimpOverloads;
 using Unmanaged;
@@ -24,9 +25,9 @@ namespace Models.Systems
     public class ModelImportSystem : SystemBase
     {
         private readonly Assimp library;
-        private readonly Query<IsModelRequest> modelRequestQuery;
-        private readonly Query<IsMeshRequest> meshRequestQuery;
-        private readonly Query<IsModel> modelQuery;
+        private readonly ComponentQuery<IsModelRequest> modelRequestQuery;
+        private readonly ComponentQuery<IsMeshRequest> meshRequestQuery;
+        private readonly ComponentQuery<IsModel> modelQuery;
         private readonly UnmanagedDictionary<uint, uint> modelVersions;
         private readonly UnmanagedDictionary<uint, uint> meshVersions;
         private readonly ConcurrentQueue<Operation> operations;
@@ -34,9 +35,9 @@ namespace Models.Systems
         public ModelImportSystem(World world) : base(world)
         {
             library = Assimp.GetApi();
-            modelQuery = new(world);
-            meshRequestQuery = new(world);
-            modelRequestQuery = new(world);
+            modelQuery = new();
+            meshRequestQuery = new();
+            modelRequestQuery = new();
             modelVersions = new();
             meshVersions = new();
             operations = new();
@@ -69,7 +70,7 @@ namespace Models.Systems
 
         private void UpdateModels()
         {
-            modelRequestQuery.Update();
+            modelRequestQuery.Update(world);
             foreach (var x in modelRequestQuery)
             {
                 IsModelRequest request = x.Component1;
@@ -97,7 +98,7 @@ namespace Models.Systems
 
         private void UpdateMeshes()
         {
-            meshRequestQuery.Update();
+            meshRequestQuery.Update(world);
             foreach (var x in meshRequestQuery)
             {
                 IsMeshRequest request = x.Component1;
@@ -147,7 +148,7 @@ namespace Models.Systems
 
             Model model = new(world, modelEntity);
             Mesh existingMesh = model[index];
-            Entity existingMeshEntity = existingMesh;
+            Entity existingMeshEntity = existingMesh.entity;
             Operation operation = new();
             operation.SelectEntity(meshEntity);
 
@@ -197,46 +198,46 @@ namespace Models.Systems
             //copy each channel
             if (existingMesh.HasPositions)
             {
-                Span<MeshVertexPosition> positions = world.GetArray<MeshVertexPosition>(existingMeshEntity);
-                Span<uint> indices = world.GetArray<uint>(existingMeshEntity);
-                operation.ResizeArray<uint>((uint)indices.Length);
+                USpan<MeshVertexPosition> positions = existingMeshEntity.GetArray<MeshVertexPosition>();
+                USpan<uint> indices = existingMeshEntity.GetArray<uint>();
+                operation.ResizeArray<uint>(indices.length);
                 operation.SetArrayElement(0, indices);
-                operation.ResizeArray<MeshVertexPosition>((uint)positions.Length);
+                operation.ResizeArray<MeshVertexPosition>(positions.length);
                 operation.SetArrayElement(0, positions);
             }
 
             if (existingMesh.HasUVs)
             {
-                Span<MeshVertexUV> uvs = world.GetArray<MeshVertexUV>(existingMeshEntity);
-                operation.ResizeArray<MeshVertexUV>((uint)uvs.Length);
+                USpan<MeshVertexUV> uvs = existingMeshEntity.GetArray<MeshVertexUV>();
+                operation.ResizeArray<MeshVertexUV>(uvs.length);
                 operation.SetArrayElement(0, uvs);
             }
 
             if (existingMesh.HasNormals)
             {
-                Span<MeshVertexNormal> normals = world.GetArray<MeshVertexNormal>(existingMeshEntity);
-                operation.ResizeArray<MeshVertexNormal>((uint)normals.Length);
+                USpan<MeshVertexNormal> normals = existingMeshEntity.GetArray<MeshVertexNormal>();
+                operation.ResizeArray<MeshVertexNormal>(normals.length);
                 operation.SetArrayElement(0, normals);
             }
 
             if (existingMesh.HasTangents)
             {
-                Span<MeshVertexTangent> tangents = world.GetArray<MeshVertexTangent>(existingMeshEntity);
-                operation.ResizeArray<MeshVertexTangent>((uint)tangents.Length);
+                USpan<MeshVertexTangent> tangents = existingMeshEntity.GetArray<MeshVertexTangent>();
+                operation.ResizeArray<MeshVertexTangent>(tangents.length);
                 operation.SetArrayElement(0, tangents);
             }
 
             if (existingMesh.HasBiTangents)
             {
-                Span<MeshVertexBiTangent> bitangents = world.GetArray<MeshVertexBiTangent>(existingMeshEntity);
-                operation.ResizeArray<MeshVertexBiTangent>((uint)bitangents.Length);
+                USpan<MeshVertexBiTangent> bitangents = existingMeshEntity.GetArray<MeshVertexBiTangent>();
+                operation.ResizeArray<MeshVertexBiTangent>(bitangents.length);
                 operation.SetArrayElement(0, bitangents);
             }
 
             if (existingMesh.HasColors)
             {
-                Span<MeshVertexColor> colors = world.GetArray<MeshVertexColor>(existingMeshEntity);
-                operation.ResizeArray<MeshVertexColor>((uint)colors.Length);
+                USpan<MeshVertexColor> colors = existingMeshEntity.GetArray<MeshVertexColor>();
+                operation.ResizeArray<MeshVertexColor>(colors.length);
                 operation.SetArrayElement(0, colors);
             }
 
@@ -254,7 +255,7 @@ namespace Models.Systems
             }
 
             Operation operation = new();
-            Span<byte> byteData = world.GetArray<byte>(modelEntity);
+            USpan<byte> byteData = world.GetArray<byte>(modelEntity);
             ImportModel(modelEntity, ref operation, byteData);
 
             operation.ClearSelection();
@@ -273,213 +274,209 @@ namespace Models.Systems
             return true;
         }
 
-        private unsafe uint ImportModel(uint modelEntity, ref Operation operation, Span<byte> bytes)
+        private unsafe uint ImportModel(uint modelEntity, ref Operation operation, USpan<byte> bytes)
         {
-            fixed (byte* ptr = bytes)
+            uint pFlags = (uint)AssimpPostProcessSteps.Triangulate;
+            USpan<byte> pHint = [];
+            USpan<AssimpPropertyStore> pProps = [];
+            AssimpScene* scene = AssimpOverloads.ImportFileFromMemoryWithProperties(library, bytes.pointer, bytes.length, pFlags, pHint.AsSystemSpan(), pProps.AsSystemSpan());
+            if (scene is null || scene->MFlags == 1 || scene->MRootNode is null)
             {
-                uint pLength = (uint)bytes.Length;
-                uint pFlags = (uint)AssimpPostProcessSteps.Triangulate;
-                ReadOnlySpan<byte> pHint = [];
-                ReadOnlySpan<AssimpPropertyStore> pProps = [];
-                AssimpScene* scene = AssimpOverloads.ImportFileFromMemoryWithProperties(library, ptr, pLength, pFlags, pHint, pProps);
-                if (scene is null || scene->MFlags == 1 || scene->MRootNode is null)
+                throw new Exception(library.GetErrorStringS());
+            }
+
+            bool containsMeshes = world.ContainsArray<ModelMesh>(modelEntity);
+            uint existingMeshCount = containsMeshes ? world.GetArrayLength<ModelMesh>(modelEntity) : 0;
+            operation.SelectEntity(modelEntity);
+            uint referenceCount = world.GetReferenceCount(modelEntity);
+            using UnmanagedList<ModelMesh> meshes = new();
+            ProcessNode(scene->MRootNode, scene, ref operation);
+            operation.SelectEntity(modelEntity);
+            if (containsMeshes)
+            {
+                operation.ResizeArray<ModelMesh>(meshes.Count);
+                operation.SetArrayElement(0, meshes.AsSpan());
+            }
+            else
+            {
+                operation.CreateArray<ModelMesh>(meshes.AsSpan());
+            }
+
+            return meshes.Count;
+
+            void ProcessNode(AssimpNode* node, AssimpScene* scene, ref Operation operation)
+            {
+                for (uint i = 0; i < node->MNumMeshes; i++)
                 {
-                    throw new Exception(library.GetErrorStringS());
+                    AssimpMesh* mesh = scene->MMeshes[node->MMeshes[i]];
+                    ProcessMesh(mesh, scene, ref operation, meshes);
                 }
 
-                bool containsMeshes = world.ContainsArray<ModelMesh>(modelEntity);
-                uint existingMeshCount = containsMeshes ? world.GetArrayLength<ModelMesh>(modelEntity) : 0;
-                operation.SelectEntity(modelEntity);
-                uint referenceCount = world.GetReferenceCount(modelEntity);
-                using UnmanagedList<ModelMesh> meshes = new();
-                ProcessNode(scene->MRootNode, scene, ref operation);
-                operation.SelectEntity(modelEntity);
-                if (containsMeshes)
+                for (uint i = 0; i < node->MNumChildren; i++)
                 {
-                    operation.ResizeArray<ModelMesh>(meshes.Count);
-                    operation.SetArrayElement(0, meshes.AsSpan());
+                    ProcessNode(node->MChildren[i], scene, ref operation);
+                }
+            }
+
+            void ProcessMesh(AssimpMesh* mesh, AssimpScene* scene, ref Operation operation, UnmanagedList<ModelMesh> meshes)
+            {
+                uint vertexCount = mesh->MNumVertices;
+                Vector3* positions = mesh->MVertices;
+                Vector3* uvs = mesh->MTextureCoords[0];
+                Vector3* normals = mesh->MNormals;
+                Vector3* tangents = mesh->MTangents;
+                Vector3* biTangents = mesh->MBitangents;
+                Vector4* colors = mesh->MColors[0];
+
+                //todo: accuracy: should reuse based on mesh name rather than index within the list, because the amount of meshes
+                //in the source asset could change, and could possibly shift around in order
+                uint meshIndex = meshes.Count;
+                var name = mesh->MName;
+                bool meshReused = meshIndex < existingMeshCount;
+                uint existingMesh = default;
+                ModelMesh modelMesh;
+                if (meshReused)
+                {
+                    //reset existing mesh
+                    rint existingMeshReference = world.GetArrayElementRef<ModelMesh>(modelEntity, meshIndex).value;
+                    existingMesh = world.GetReference(modelEntity, existingMeshReference);
+                    operation.SelectEntity(existingMesh);
+                    operation.SetComponent(new Name(name.AsString));
+                    modelMesh = new(existingMeshReference);
                 }
                 else
                 {
-                    operation.CreateArray<ModelMesh>(meshes.AsSpan());
-                }
+                    //create new mesh
+                    operation.ClearSelection();
+                    operation.CreateEntity();
+                    operation.SetParent(modelEntity);
+                    operation.CreateArray<uint>(0);
+                    operation.AddComponent(new Name(name.AsString));
 
-                return meshes.Count;
+                    //reference the created mesh
+                    operation.ClearSelection();
+                    operation.SelectEntity(modelEntity);
+                    operation.AddReferenceTowardsPreviouslyCreatedEntity(0);
+                    rint newReference = (rint)(referenceCount + meshIndex + 1);
+                    modelMesh = new(newReference);
 
-                void ProcessNode(AssimpNode* node, AssimpScene* scene, ref Operation operation)
-                {
-                    for (int i = 0; i < node->MNumMeshes; i++)
-                    {
-                        AssimpMesh* mesh = scene->MMeshes[node->MMeshes[i]];
-                        ProcessMesh(mesh, scene, ref operation, meshes);
-                    }
+                    //select the created mesh again
+                    operation.SelectPreviouslyCreatedEntity(0);
 
-                    for (int i = 0; i < node->MNumChildren; i++)
-                    {
-                        ProcessNode(node->MChildren[i], scene, ref operation);
-                    }
-                }
-
-                void ProcessMesh(AssimpMesh* mesh, AssimpScene* scene, ref Operation operation, UnmanagedList<ModelMesh> meshes)
-                {
-                    uint vertexCount = mesh->MNumVertices;
-                    Vector3* positions = mesh->MVertices;
-                    Vector3* uvs = mesh->MTextureCoords[0];
-                    Vector3* normals = mesh->MNormals;
-                    Vector3* tangents = mesh->MTangents;
-                    Vector3* bitangents = mesh->MBitangents;
-                    Vector4* colors = mesh->MColors[0];
-
-                    //todo: accuracy: should reuse based on mesh name rather than index within the list, because the amount of meshes
-                    //in the source asset could change, and could possibly shift around in order
-                    uint meshIndex = meshes.Count;
-                    var name = mesh->MName;
-                    bool meshReused = meshIndex < existingMeshCount;
-                    uint existingMesh = default;
-                    ModelMesh modelMesh;
-                    if (meshReused)
-                    {
-                        //reset existing mesh
-                        rint existingMeshReference = world.GetArrayElementRef<ModelMesh>(modelEntity, meshIndex).value;
-                        existingMesh = world.GetReference(modelEntity, existingMeshReference);
-                        operation.SelectEntity(existingMesh);
-                        operation.SetComponent(new Name(name.AsString));
-                        modelMesh = new(existingMeshReference);
-                    }
-                    else
-                    {
-                        //create new mesh
-                        operation.ClearSelection();
-                        operation.CreateEntity();
-                        operation.SetParent(modelEntity);
-                        operation.CreateArray<uint>(0);
-                        operation.AddComponent(new Name(name.AsString));
-
-                        //reference the created mesh
-                        operation.ClearSelection();
-                        operation.SelectEntity(modelEntity);
-                        operation.AddReferenceTowardsPreviouslyCreatedEntity(0);
-                        rint newReference = (rint)(referenceCount + meshIndex + 1);
-                        modelMesh = new(newReference);
-
-                        //select the created mesh again
-                        operation.SelectPreviouslyCreatedEntity(0);
-
-                        if (positions is not null)
-                        {
-                            operation.CreateArray<MeshVertexPosition>(0);
-                        }
-
-                        if (uvs is not null)
-                        {
-                            operation.CreateArray<MeshVertexUV>(0);
-                        }
-
-                        if (normals is not null)
-                        {
-                            operation.CreateArray<MeshVertexNormal>(0);
-                        }
-
-                        if (tangents is not null)
-                        {
-                            operation.CreateArray<MeshVertexTangent>(0);
-                        }
-
-                        if (bitangents is not null)
-                        {
-                            operation.CreateArray<MeshVertexBiTangent>(0);
-                        }
-
-                        if (colors is not null)
-                        {
-                            operation.CreateArray<MeshVertexColor>(0);
-                        }
-                    }
-
-                    meshes.Add(modelMesh);
-
-                    //fill in data
                     if (positions is not null)
                     {
-                        operation.ResizeArray<MeshVertexPosition>((uint)vertexCount);
-                        operation.SetArrayElement(0, new Span<MeshVertexPosition>(positions, (int)vertexCount));
-                        uint faceCount = mesh->MNumFaces;
-                        using UnmanagedList<uint> indices = new();
-                        for (int i = 0; i < faceCount; i++)
-                        {
-                            var face = mesh->MFaces[i];
-                            for (int j = 0; j < face.MNumIndices; j++)
-                            {
-                                uint index = face.MIndices[j];
-                                indices.Add(index);
-                            }
-                        }
-
-                        operation.ResizeArray<uint>((uint)indices.Count);
-                        operation.SetArrayElement(0, indices.AsSpan());
+                        operation.CreateArray<MeshVertexPosition>(0);
                     }
 
                     if (uvs is not null)
                     {
-                        using UnmanagedArray<MeshVertexUV> uvSpan = new(vertexCount);
-                        Span<Vector3> vector3s = new(uvs, (int)mesh->MNumVertices);
-                        for (uint i = 0; i < vector3s.Length; i++)
-                        {
-                            Vector3 raw = vector3s[(int)i];
-                            uvSpan[i] = new MeshVertexUV(new(raw.X, raw.Y));
-                        }
-
-                        operation.ResizeArray<MeshVertexUV>((uint)vertexCount);
-                        operation.SetArrayElement(0, uvSpan.AsSpan());
+                        operation.CreateArray<MeshVertexUV>(0);
                     }
 
                     if (normals is not null)
                     {
-                        operation.ResizeArray<MeshVertexNormal>((uint)vertexCount);
-                        operation.SetArrayElement(0, new Span<MeshVertexNormal>(normals, (int)vertexCount));
+                        operation.CreateArray<MeshVertexNormal>(0);
                     }
 
                     if (tangents is not null)
                     {
-                        operation.ResizeArray<MeshVertexTangent>((uint)vertexCount);
-                        operation.SetArrayElement(0, new Span<MeshVertexTangent>(tangents, (int)vertexCount));
+                        operation.CreateArray<MeshVertexTangent>(0);
                     }
 
-                    if (bitangents is not null)
+                    if (biTangents is not null)
                     {
-                        operation.ResizeArray<MeshVertexBiTangent>((uint)vertexCount);
-                        operation.SetArrayElement(0, new Span<MeshVertexBiTangent>(bitangents, (int)vertexCount));
+                        operation.CreateArray<MeshVertexBiTangent>(0);
                     }
 
                     if (colors is not null)
                     {
-                        operation.ResizeArray<MeshVertexColor>((uint)vertexCount);
-                        operation.SetArrayElement(0, new Span<MeshVertexColor>(colors, (int)vertexCount));
+                        operation.CreateArray<MeshVertexColor>(0);
+                    }
+                }
+
+                meshes.Add(modelMesh);
+
+                //fill in data
+                if (positions is not null)
+                {
+                    operation.ResizeArray<MeshVertexPosition>(vertexCount);
+                    operation.SetArrayElement(0, new USpan<MeshVertexPosition>(positions, vertexCount));
+                    uint faceCount = mesh->MNumFaces;
+                    using UnmanagedList<uint> indices = new();
+                    for (uint i = 0; i < faceCount; i++)
+                    {
+                        AssimpFace face = mesh->MFaces[i];
+                        for (uint j = 0; j < face.MNumIndices; j++)
+                        {
+                            uint index = face.MIndices[j];
+                            indices.Add(index);
+                        }
                     }
 
-                    var material = scene->MMaterials[mesh->MMaterialIndex];
-                    if (material is not null)
+                    operation.ResizeArray<uint>(indices.Count);
+                    operation.SetArrayElement(0, indices.AsSpan());
+                }
+
+                if (uvs is not null)
+                {
+                    using UnmanagedArray<MeshVertexUV> uvSpan = new(vertexCount);
+                    USpan<Vector3> vector3s = new(uvs, mesh->MNumVertices);
+                    for (uint i = 0; i < vector3s.length; i++)
                     {
-                        //todo: handle materials
+                        Vector3 raw = vector3s[i];
+                        uvSpan[i] = new MeshVertexUV(new(raw.X, raw.Y));
                     }
 
-                    //increment mesh version
-                    if (meshReused)
+                    operation.ResizeArray<MeshVertexUV>(vertexCount);
+                    operation.SetArrayElement(0, uvSpan.AsSpan());
+                }
+
+                if (normals is not null)
+                {
+                    operation.ResizeArray<MeshVertexNormal>(vertexCount);
+                    operation.SetArrayElement(0, new USpan<MeshVertexNormal>(normals, vertexCount));
+                }
+
+                if (tangents is not null)
+                {
+                    operation.ResizeArray<MeshVertexTangent>(vertexCount);
+                    operation.SetArrayElement(0, new USpan<MeshVertexTangent>(tangents, vertexCount));
+                }
+
+                if (biTangents is not null)
+                {
+                    operation.ResizeArray<MeshVertexBiTangent>(vertexCount);
+                    operation.SetArrayElement(0, new USpan<MeshVertexBiTangent>(biTangents, vertexCount));
+                }
+
+                if (colors is not null)
+                {
+                    operation.ResizeArray<MeshVertexColor>(vertexCount);
+                    operation.SetArrayElement(0, new USpan<MeshVertexColor>(colors, vertexCount));
+                }
+
+                var material = scene->MMaterials[mesh->MMaterialIndex];
+                if (material is not null)
+                {
+                    //todo: handle materials
+                }
+
+                //increment mesh version
+                if (meshReused)
+                {
+                    if (world.TryGetComponent(existingMesh, out IsMesh component))
                     {
-                        if (world.TryGetComponent(existingMesh, out IsMesh component))
-                        {
-                            component.version++;
-                            operation.SetComponent(component);
-                        }
-                        else
-                        {
-                            operation.AddComponent(new IsMesh());
-                        }
+                        component.version++;
+                        operation.SetComponent(component);
                     }
                     else
                     {
                         operation.AddComponent(new IsMesh());
                     }
+                }
+                else
+                {
+                    operation.AddComponent(new IsMesh());
                 }
             }
         }
