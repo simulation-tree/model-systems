@@ -61,7 +61,7 @@ namespace Models.Tests
             Assert.That(model.MeshCount, Is.EqualTo(1));
             Mesh mesh = model[0];
             Assert.That(mesh.VertexCount, Is.EqualTo(24));
-            (Vector3 min, Vector3 max) bounds = mesh.GetBounds();
+            (Vector3 min, Vector3 max) bounds = mesh.Bounds;
             Assert.That(bounds.min, Is.EqualTo(new Vector3(-1, -1, -1)));
             Assert.That(bounds.max, Is.EqualTo(new Vector3(1, 1, 1)));
         }
@@ -83,7 +83,7 @@ namespace Models.Tests
             }
 
             Assert.That(cubeMesh.VertexCount, Is.EqualTo(24));
-            (Vector3 min, Vector3 max) bounds = cubeMesh.GetBounds();
+            (Vector3 min, Vector3 max) bounds = cubeMesh.Bounds;
             Assert.That(bounds.min, Is.EqualTo(new Vector3(-1, -1, -1)));
             Assert.That(bounds.max, Is.EqualTo(new Vector3(1, 1, 1)));
         }

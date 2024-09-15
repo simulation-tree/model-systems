@@ -200,44 +200,44 @@ namespace Models.Systems
             {
                 USpan<MeshVertexPosition> positions = existingMeshEntity.GetArray<MeshVertexPosition>();
                 USpan<uint> indices = existingMeshEntity.GetArray<uint>();
-                operation.ResizeArray<uint>(indices.length);
+                operation.ResizeArray<uint>(indices.Length);
                 operation.SetArrayElement(0, indices);
-                operation.ResizeArray<MeshVertexPosition>(positions.length);
+                operation.ResizeArray<MeshVertexPosition>(positions.Length);
                 operation.SetArrayElement(0, positions);
             }
 
             if (existingMesh.HasUVs)
             {
                 USpan<MeshVertexUV> uvs = existingMeshEntity.GetArray<MeshVertexUV>();
-                operation.ResizeArray<MeshVertexUV>(uvs.length);
+                operation.ResizeArray<MeshVertexUV>(uvs.Length);
                 operation.SetArrayElement(0, uvs);
             }
 
             if (existingMesh.HasNormals)
             {
                 USpan<MeshVertexNormal> normals = existingMeshEntity.GetArray<MeshVertexNormal>();
-                operation.ResizeArray<MeshVertexNormal>(normals.length);
+                operation.ResizeArray<MeshVertexNormal>(normals.Length);
                 operation.SetArrayElement(0, normals);
             }
 
             if (existingMesh.HasTangents)
             {
                 USpan<MeshVertexTangent> tangents = existingMeshEntity.GetArray<MeshVertexTangent>();
-                operation.ResizeArray<MeshVertexTangent>(tangents.length);
+                operation.ResizeArray<MeshVertexTangent>(tangents.Length);
                 operation.SetArrayElement(0, tangents);
             }
 
             if (existingMesh.HasBiTangents)
             {
                 USpan<MeshVertexBiTangent> bitangents = existingMeshEntity.GetArray<MeshVertexBiTangent>();
-                operation.ResizeArray<MeshVertexBiTangent>(bitangents.length);
+                operation.ResizeArray<MeshVertexBiTangent>(bitangents.Length);
                 operation.SetArrayElement(0, bitangents);
             }
 
             if (existingMesh.HasColors)
             {
                 USpan<MeshVertexColor> colors = existingMeshEntity.GetArray<MeshVertexColor>();
-                operation.ResizeArray<MeshVertexColor>(colors.length);
+                operation.ResizeArray<MeshVertexColor>(colors.Length);
                 operation.SetArrayElement(0, colors);
             }
 
@@ -279,7 +279,7 @@ namespace Models.Systems
             uint pFlags = (uint)AssimpPostProcessSteps.Triangulate;
             USpan<byte> pHint = [];
             USpan<AssimpPropertyStore> pProps = [];
-            AssimpScene* scene = AssimpOverloads.ImportFileFromMemoryWithProperties(library, bytes.pointer, bytes.length, pFlags, pHint.AsSystemSpan(), pProps.AsSystemSpan());
+            AssimpScene* scene = AssimpOverloads.ImportFileFromMemoryWithProperties(library, bytes.pointer, bytes.Length, pFlags, pHint.AsSystemSpan(), pProps.AsSystemSpan());
             if (scene is null || scene->MFlags == 1 || scene->MRootNode is null)
             {
                 throw new Exception(library.GetErrorStringS());
@@ -421,7 +421,7 @@ namespace Models.Systems
                 {
                     using UnmanagedArray<MeshVertexUV> uvSpan = new(vertexCount);
                     USpan<Vector3> vector3s = new(uvs, mesh->MNumVertices);
-                    for (uint i = 0; i < vector3s.length; i++)
+                    for (uint i = 0; i < vector3s.Length; i++)
                     {
                         Vector3 raw = vector3s[i];
                         uvSpan[i] = new MeshVertexUV(new(raw.X, raw.Y));
