@@ -22,13 +22,9 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-	  <PackageReference Include="Silk.NET.Assimp" Version="2.21.0" />
-	  <PackageReference Include="System.Text.Json" Version="9.0.0-preview.7.24405.7" />
-	</ItemGroup>
-
-	<ItemGroup>
 	  <ProjectReference Include="..\..\data\source\Data.csproj" />
 	  <ProjectReference Include="..\..\Models\source\Models.csproj" />
+	  <ProjectReference Include="..\AssimpNet-master\AssimpNet\AssimpNet.csproj" />
 	</ItemGroup>
 
 </Project>
