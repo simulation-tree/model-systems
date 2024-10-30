@@ -1,4 +1,5 @@
 ﻿using Assimp;
+using Collections;
 using Data.Components;
 using Meshes;
 using Meshes.Components;
@@ -11,7 +12,6 @@ using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Unmanaged;
-using Unmanaged.Collections;
 
 namespace Models.Systems
 {
@@ -21,9 +21,9 @@ namespace Models.Systems
         private readonly ComponentQuery<IsModelRequest> modelRequestQuery;
         private readonly ComponentQuery<IsMeshRequest> meshRequestQuery;
         private readonly ComponentQuery<IsModel> modelQuery;
-        private readonly UnmanagedDictionary<Entity, uint> modelVersions;
-        private readonly UnmanagedDictionary<Entity, uint> meshVersions;
-        private readonly UnmanagedList<Operation> operations;
+        private readonly Dictionary<Entity, uint> modelVersions;
+        private readonly Dictionary<Entity, uint> meshVersions;
+        private readonly List<Operation> operations;
 
         readonly unsafe InitializeFunction ISystem.Initialize => new(&Initialize);
         readonly unsafe IterateFunction ISystem.Update => new(&Update);
@@ -304,7 +304,7 @@ namespace Models.Systems
             uint existingMeshCount = containsMeshes ? model.GetArrayLength<ModelMesh>() : 0;
             operation.SelectEntity(model);
             uint referenceCount = model.GetReferenceCount();
-            using UnmanagedList<ModelMesh> meshes = new();
+            using List<ModelMesh> meshes = new();
             ProcessNode(scene.RootNode, scene, ref operation);
             operation.SelectEntity(model);
             if (containsMeshes)
@@ -334,7 +334,7 @@ namespace Models.Systems
                 }
             }
 
-            void ProcessMesh(Assimp.Mesh mesh, Scene scene, ref Operation operation, UnmanagedList<ModelMesh> meshes)
+            void ProcessMesh(Assimp.Mesh mesh, Scene scene, ref Operation operation, List<ModelMesh> meshes)
             {
                 uint vertexCount = (uint)mesh.VertexCount;
                 uint faceCount = (uint)mesh.FaceCount;
@@ -416,7 +416,7 @@ namespace Models.Systems
                 //fill in data
                 if (positions is not null)
                 {
-                    using UnmanagedArray<MeshVertexPosition> tempData = new((uint)positions.Count);
+                    using Array<MeshVertexPosition> tempData = new((uint)positions.Count);
                     for (uint i = 0; i < positions.Count; i++)
                     {
                         tempData[i] = positions[(int)i];
@@ -425,7 +425,7 @@ namespace Models.Systems
                     operation.ResizeArray<MeshVertexPosition>(vertexCount);
                     operation.SetArrayElements(0, tempData.AsSpan());
 
-                    using UnmanagedList<uint> indices = new();
+                    using List<uint> indices = new();
                     for (uint f = 0; f < faceCount; f++)
                     {
                         Face face = mesh.Faces[(int)f];
@@ -442,7 +442,7 @@ namespace Models.Systems
 
                 if (uvs is not null)
                 {
-                    using UnmanagedArray<MeshVertexUV> tempData = new(vertexCount);
+                    using Array<MeshVertexUV> tempData = new(vertexCount);
                     for (uint i = 0; i < uvs.Count; i++)
                     {
                         Vector3 raw = uvs[(int)i];
@@ -455,7 +455,7 @@ namespace Models.Systems
 
                 if (normals is not null)
                 {
-                    using UnmanagedArray<MeshVertexNormal> tempData = new((uint)normals.Count);
+                    using Array<MeshVertexNormal> tempData = new((uint)normals.Count);
                     for (uint i = 0; i < normals.Count; i++)
                     {
                         tempData[i] = new(normals[(int)i]);
@@ -467,7 +467,7 @@ namespace Models.Systems
 
                 if (tangents is not null)
                 {
-                    using UnmanagedArray<MeshVertexTangent> tempData = new((uint)tangents.Count);
+                    using Array<MeshVertexTangent> tempData = new((uint)tangents.Count);
                     for (uint i = 0; i < tangents.Count; i++)
                     {
                         tempData[i] = new(tangents[(int)i]);
@@ -479,7 +479,7 @@ namespace Models.Systems
 
                 if (biTangents is not null)
                 {
-                    using UnmanagedArray<MeshVertexBiTangent> tempData = new((uint)biTangents.Count);
+                    using Array<MeshVertexBiTangent> tempData = new((uint)biTangents.Count);
                     for (uint i = 0; i < biTangents.Count; i++)
                     {
                         tempData[i] = new(biTangents[(int)i]);
@@ -491,7 +491,7 @@ namespace Models.Systems
 
                 if (colors is not null)
                 {
-                    using UnmanagedArray<MeshVertexColor> tempData = new((uint)colors.Count);
+                    using Array<MeshVertexColor> tempData = new((uint)colors.Count);
                     for (uint i = 0; i < colors.Count; i++)
                     {
                         tempData[i] = new(colors[(int)i]);
