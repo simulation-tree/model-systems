@@ -169,7 +169,7 @@ namespace Models.Systems
             }
 
             Model model = new(world, modelEntity);
-            var existingMesh = model[index];
+            Meshes.Mesh existingMesh = model[index];
             Entity existingMeshEntity = existingMesh.entity;
             Operation operation = new();
             operation.SelectEntity(mesh);
