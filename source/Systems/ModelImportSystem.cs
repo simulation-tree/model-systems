@@ -378,6 +378,7 @@ namespace Models.Systems
                     modelMesh = new(newReference);
 
                     //select the created mesh again
+                    operation.ClearSelection();
                     operation.SelectPreviouslyCreatedEntity(0);
 
                     if (positions is not null)
