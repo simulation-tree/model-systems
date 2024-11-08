@@ -1,10 +1,10 @@
-﻿using Assimp;
-using Collections;
+﻿using Collections;
 using Data.Components;
 using Meshes;
 using Meshes.Components;
 using Models.Components;
 using OpenAssetImporter;
+using Silk.NET.Assimp;
 using Simulation;
 using Simulation.Functions;
 using System;
@@ -53,13 +53,18 @@ namespace Models.Systems
 
         public ModelImportSystem()
         {
-            library = new();
+            library = CreateAssimpLibrary();
             modelQuery = new();
             meshRequestQuery = new();
             modelRequestQuery = new();
             modelVersions = new();
             meshVersions = new();
             operations = new();
+        }
+
+        private static Library CreateAssimpLibrary()
+        {
+            return new();
         }
 
         private void CleanUp()
@@ -90,6 +95,7 @@ namespace Models.Systems
         private void UpdateModels(World world)
         {
             modelRequestQuery.Update(world);
+            USpan<byte> hint = stackalloc byte[8];
             foreach (var x in modelRequestQuery)
             {
                 IsModelRequest request = x.Component1;
@@ -107,7 +113,8 @@ namespace Models.Systems
                 if (sourceChanged)
                 {
                     //ThreadPool.QueueUserWorkItem(UpdateMeshReferencesOnModelEntity, modelEntity, false);
-                    if (TryFinishModelRequest(model))
+                    uint hintLength = request.CopyExtensionBytes(hint);
+                    if (TryFinishModelRequest(model, hint.Slice(0, hintLength)))
                     {
                         modelVersions.AddOrSet(model, request.version);
                     }
@@ -267,18 +274,18 @@ namespace Models.Systems
             return true;
         }
 
-        private bool TryFinishModelRequest(Entity model)
+        private bool TryFinishModelRequest(Entity model, USpan<byte> hint)
         {
             //wait for byte data to be available
             if (!model.ContainsArray<byte>())
             {
-                Debug.WriteLine($"Model data not available on entity `{model}`, waiting");
+                Trace.WriteLine($"Model data not available on entity `{model}`, waiting");
                 return false;
             }
 
             Operation operation = new();
             USpan<byte> byteData = model.GetArray<byte>();
-            ImportModel(model, ref operation, byteData);
+            ImportModel(model, ref operation, byteData, hint);
 
             operation.ClearSelection();
             operation.SelectEntity(model);
@@ -296,16 +303,16 @@ namespace Models.Systems
             return true;
         }
 
-        private unsafe uint ImportModel(Entity model, ref Operation operation, USpan<byte> bytes)
+        private unsafe uint ImportModel(Entity model, ref Operation operation, USpan<byte> bytes, USpan<byte> hint)
         {
             World world = model.GetWorld();
-            Scene scene = library.ImportModel(bytes);
+            Scene* scene = library.ImportModel(bytes, hint);
             bool containsMeshes = model.ContainsArray<ModelMesh>();
             uint existingMeshCount = containsMeshes ? model.GetArrayLength<ModelMesh>() : 0;
             operation.SelectEntity(model);
             uint referenceCount = model.GetReferenceCount();
             using List<ModelMesh> meshes = new();
-            ProcessNode(scene.RootNode, scene, ref operation);
+            ProcessNode(scene->MRootNode, scene, ref operation);
             operation.SelectEntity(model);
             if (containsMeshes)
             {
@@ -317,38 +324,39 @@ namespace Models.Systems
                 operation.CreateArray<ModelMesh>(meshes.AsSpan());
             }
 
+            library.Release(scene);
             return meshes.Count;
 
-            void ProcessNode(Node node, Scene scene, ref Operation operation)
+            void ProcessNode(Node* node, Scene* scene, ref Operation operation)
             {
-                for (uint i = 0; i < node.MeshCount; i++)
+                for (uint i = 0; i < node->MNumMeshes; i++)
                 {
-                    Assimp.Mesh mesh = scene.Meshes[node.MeshIndices[(int)i]];
+                    Silk.NET.Assimp.Mesh* mesh = scene->MMeshes[node->MMeshes[i]];
                     ProcessMesh(mesh, scene, ref operation, meshes);
                 }
 
-                for (uint i = 0; i < node.ChildCount; i++)
+                for (uint i = 0; i < node->MNumChildren; i++)
                 {
-                    Node child = node.Children[(int)i];
+                    Node* child = node->MChildren[i];
                     ProcessNode(child, scene, ref operation);
                 }
             }
 
-            void ProcessMesh(Assimp.Mesh mesh, Scene scene, ref Operation operation, List<ModelMesh> meshes)
+            void ProcessMesh(Silk.NET.Assimp.Mesh* mesh, Scene* scene, ref Operation operation, List<ModelMesh> meshes)
             {
-                uint vertexCount = (uint)mesh.VertexCount;
-                uint faceCount = (uint)mesh.FaceCount;
-                System.Collections.Generic.List<Vector3>? positions = mesh.HasVertices ? mesh.Vertices : null;
-                System.Collections.Generic.List<Vector3>? uvs = mesh.HasTextureCoords(0) ? mesh.TextureCoordinateChannels[0] : null;
-                System.Collections.Generic.List<Vector3>? normals = mesh.HasNormals ? mesh.Normals : null;
-                System.Collections.Generic.List<Vector3>? tangents = mesh.HasTangentBasis ? mesh.Tangents : null;
-                System.Collections.Generic.List<Vector3>? biTangents = mesh.HasTangentBasis ? mesh.BiTangents : null;
-                System.Collections.Generic.List<Vector4>? colors = mesh.HasVertexColors(0) ? mesh.VertexColorChannels[0] : null;
+                uint vertexCount = mesh->MNumVertices;
+                uint faceCount = mesh->MNumFaces;
+                Vector3* positions = mesh->MVertices;
+                Vector3* uvs = mesh->MTextureCoords.Element0;
+                Vector3* normals = mesh->MNormals;
+                Vector3* tangents = mesh->MTangents;
+                Vector3* biTangents = mesh->MBitangents;
+                Vector4* colors = mesh->MColors.Element0;
 
                 //todo: accuracy: should reuse based on mesh name rather than index within the list, because the amount of meshes
                 //in the source asset could change, and could possibly shift around in order
                 uint meshIndex = meshes.Count;
-                string name = mesh.Name;
+                string name = mesh->MName.ToString();
                 bool meshReused = meshIndex < existingMeshCount;
                 Entity existingMesh = default;
                 ModelMesh modelMesh;
@@ -417,10 +425,10 @@ namespace Models.Systems
                 //fill in data
                 if (positions is not null)
                 {
-                    using Array<MeshVertexPosition> tempData = new((uint)positions.Count);
-                    for (uint i = 0; i < positions.Count; i++)
+                    using Array<MeshVertexPosition> tempData = new(vertexCount);
+                    for (uint i = 0; i < vertexCount; i++)
                     {
-                        tempData[i] = positions[(int)i];
+                        tempData[i] = positions[i];
                     }
 
                     operation.ResizeArray<MeshVertexPosition>(vertexCount);
@@ -429,10 +437,10 @@ namespace Models.Systems
                     using List<uint> indices = new();
                     for (uint f = 0; f < faceCount; f++)
                     {
-                        Face face = mesh.Faces[(int)f];
-                        for (uint i = 0; i < face.IndexCount; i++)
+                        Face face = mesh->MFaces[f];
+                        for (uint i = 0; i < face.MNumIndices; i++)
                         {
-                            uint index = (uint)face.Indices[(int)i];
+                            uint index = face.MIndices[i];
                             indices.Add(index);
                         }
                     }
@@ -444,9 +452,9 @@ namespace Models.Systems
                 if (uvs is not null)
                 {
                     using Array<MeshVertexUV> tempData = new(vertexCount);
-                    for (uint i = 0; i < uvs.Count; i++)
+                    for (uint i = 0; i < vertexCount; i++)
                     {
-                        Vector3 raw = uvs[(int)i];
+                        Vector3 raw = uvs[i];
                         tempData[i] = new MeshVertexUV(new(raw.X, raw.Y));
                     }
 
@@ -456,10 +464,10 @@ namespace Models.Systems
 
                 if (normals is not null)
                 {
-                    using Array<MeshVertexNormal> tempData = new((uint)normals.Count);
-                    for (uint i = 0; i < normals.Count; i++)
+                    using Array<MeshVertexNormal> tempData = new(vertexCount);
+                    for (uint i = 0; i < vertexCount; i++)
                     {
-                        tempData[i] = new(normals[(int)i]);
+                        tempData[i] = new(normals[i]);
                     }
 
                     operation.ResizeArray<MeshVertexNormal>(vertexCount);
@@ -468,10 +476,10 @@ namespace Models.Systems
 
                 if (tangents is not null)
                 {
-                    using Array<MeshVertexTangent> tempData = new((uint)tangents.Count);
-                    for (uint i = 0; i < tangents.Count; i++)
+                    using Array<MeshVertexTangent> tempData = new(vertexCount);
+                    for (uint i = 0; i < vertexCount; i++)
                     {
-                        tempData[i] = new(tangents[(int)i]);
+                        tempData[i] = new(tangents[i]);
                     }
 
                     operation.ResizeArray<MeshVertexTangent>(vertexCount);
@@ -480,10 +488,10 @@ namespace Models.Systems
 
                 if (biTangents is not null)
                 {
-                    using Array<MeshVertexBiTangent> tempData = new((uint)biTangents.Count);
-                    for (uint i = 0; i < biTangents.Count; i++)
+                    using Array<MeshVertexBiTangent> tempData = new(vertexCount);
+                    for (uint i = 0; i < vertexCount; i++)
                     {
-                        tempData[i] = new(biTangents[(int)i]);
+                        tempData[i] = new(biTangents[i]);
                     }
 
                     operation.ResizeArray<MeshVertexBiTangent>(vertexCount);
@@ -492,17 +500,17 @@ namespace Models.Systems
 
                 if (colors is not null)
                 {
-                    using Array<MeshVertexColor> tempData = new((uint)colors.Count);
-                    for (uint i = 0; i < colors.Count; i++)
+                    using Array<MeshVertexColor> tempData = new(vertexCount);
+                    for (uint i = 0; i < vertexCount; i++)
                     {
-                        tempData[i] = new(colors[(int)i]);
+                        tempData[i] = new(colors[i]);
                     }
 
                     operation.ResizeArray<MeshVertexColor>(vertexCount);
                     operation.SetArrayElements(0, tempData.AsSpan());
                 }
 
-                Material? material = scene.Materials[mesh.MaterialIndex];
+                Material* material = scene->MMaterials[mesh->MMaterialIndex];
                 if (material is not null)
                 {
                     //todo: handle materials
