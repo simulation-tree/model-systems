@@ -24,7 +24,6 @@
 	<ItemGroup>
 	  <ProjectReference Include="..\..\data\source\Data.csproj" />
 	  <ProjectReference Include="..\..\Models\source\Models.csproj" />
-	  <ProjectReference Include="..\AssimpNet-master\AssimpNet\AssimpNet.csproj" />
 	</ItemGroup>
 
 </Project>
