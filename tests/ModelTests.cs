@@ -1,11 +1,16 @@
 ﻿using Data;
+using Data.Components;
 using Data.Systems;
 using Meshes;
+using Meshes.Components;
+using Models.Components;
 using Models.Systems;
+using Simulation.Components;
 using Simulation.Tests;
 using System.Numerics;
 using System.Threading;
 using System.Threading.Tasks;
+using Worlds;
 
 namespace Models.Tests
 {
@@ -14,6 +19,25 @@ namespace Models.Tests
         protected override void SetUp()
         {
             base.SetUp();
+            ComponentType.Register<IsDataRequest>();
+            ComponentType.Register<IsDataSource>();
+            ComponentType.Register<IsData>();
+            ComponentType.Register<IsProgram>();
+            ComponentType.Register<ProgramAllocation>();
+            ArrayType.Register<BinaryData>();
+            ComponentType.Register<Name>();
+            ComponentType.Register<IsMesh>();
+            ComponentType.Register<IsMeshRequest>();
+            ComponentType.Register<IsModel>();
+            ComponentType.Register<IsModelRequest>();
+            ArrayType.Register<ModelMesh>();
+            ArrayType.Register<MeshVertexPosition>();
+            ArrayType.Register<MeshVertexNormal>();
+            ArrayType.Register<MeshVertexUV>();
+            ArrayType.Register<MeshVertexColor>();
+            ArrayType.Register<MeshVertexTangent>();
+            ArrayType.Register<MeshVertexBiTangent>();
+            ArrayType.Register<MeshVertexIndex>();
             Simulator.AddSystem<DataImportSystem>();
             Simulator.AddSystem<ModelImportSystem>();
         }
@@ -39,7 +63,7 @@ namespace Models.Tests
         {
             DataSource entity = new(World, "cube.fbx", CubeFBX.bytes);
             Model cubeModel = new(World, "cube.fbx");
-            Mesh cubeMesh = new(World, cubeModel.entity);
+            Mesh cubeMesh = new(World, cubeModel);
 
             await cubeMesh.UntilCompliant(Simulate, cancellation);
 

@@ -12,6 +12,7 @@ using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Unmanaged;
+using Worlds;
 
 namespace Models.Systems
 {
@@ -25,12 +26,12 @@ namespace Models.Systems
         private readonly Dictionary<Entity, uint> meshVersions;
         private readonly List<Operation> operations;
 
-        readonly unsafe InitializeFunction ISystem.Initialize => new(&Initialize);
-        readonly unsafe IterateFunction ISystem.Iterate => new(&Update);
-        readonly unsafe FinalizeFunction ISystem.Finalize => new(&Finalize);
+        readonly unsafe StartSystem ISystem.Start => new(&Start);
+        readonly unsafe UpdateSystem ISystem.Update => new(&Update);
+        readonly unsafe FinishSystem ISystem.Finish => new(&Finish);
 
         [UnmanagedCallersOnly]
-        private static void Initialize(SystemContainer container, World world)
+        private static void Start(SystemContainer container, World world)
         {
         }
 
@@ -42,7 +43,7 @@ namespace Models.Systems
         }
 
         [UnmanagedCallersOnly]
-        private static void Finalize(SystemContainer container, World world)
+        private static void Finish(SystemContainer container, World world)
         {
             if (container.World == world)
             {
@@ -177,7 +178,7 @@ namespace Models.Systems
 
             Model model = new(world, modelEntity);
             Meshes.Mesh existingMesh = model[index];
-            Entity existingMeshEntity = existingMesh.entity;
+            Entity existingMeshEntity = existingMesh;
             Operation operation = new();
             operation.SelectEntity(mesh);
 
@@ -191,7 +192,7 @@ namespace Models.Systems
             {
                 //become a mesh now!
                 operation.AddComponent(new IsMesh());
-                operation.CreateArray<uint>(0);
+                operation.CreateArray<MeshVertexIndex>(0);
 
                 if (existingMesh.HasPositions)
                 {
@@ -228,8 +229,8 @@ namespace Models.Systems
             if (existingMesh.HasPositions)
             {
                 USpan<MeshVertexPosition> positions = existingMeshEntity.GetArray<MeshVertexPosition>();
-                USpan<uint> indices = existingMeshEntity.GetArray<uint>();
-                operation.ResizeArray<uint>(indices.Length);
+                USpan<MeshVertexIndex> indices = existingMeshEntity.GetArray<MeshVertexIndex>();
+                operation.ResizeArray<MeshVertexIndex>(indices.Length);
                 operation.SetArrayElements(0, indices);
                 operation.ResizeArray<MeshVertexPosition>(positions.Length);
                 operation.SetArrayElements(0, positions);
@@ -277,14 +278,14 @@ namespace Models.Systems
         private bool TryFinishModelRequest(Entity model, USpan<byte> hint)
         {
             //wait for byte data to be available
-            if (!model.ContainsArray<byte>())
+            if (!model.ContainsArray<BinaryData>())
             {
                 Trace.WriteLine($"Model data not available on entity `{model}`, waiting");
                 return false;
             }
 
             Operation operation = new();
-            USpan<byte> byteData = model.GetArray<byte>();
+            USpan<BinaryData> byteData = model.GetArray<BinaryData>();
             ImportModel(model, ref operation, byteData, hint);
 
             operation.ClearSelection();
@@ -303,10 +304,10 @@ namespace Models.Systems
             return true;
         }
 
-        private unsafe uint ImportModel(Entity model, ref Operation operation, USpan<byte> bytes, USpan<byte> hint)
+        private unsafe uint ImportModel(Entity model, ref Operation operation, USpan<BinaryData> bytes, USpan<byte> hint)
         {
             World world = model.GetWorld();
-            Scene* scene = library.ImportModel(bytes, hint);
+            Scene* scene = library.ImportModel(bytes.As<byte>(), hint);
             bool containsMeshes = model.ContainsArray<ModelMesh>();
             uint existingMeshCount = containsMeshes ? model.GetArrayLength<ModelMesh>() : 0;
             operation.SelectEntity(model);
@@ -375,7 +376,7 @@ namespace Models.Systems
                     operation.ClearSelection();
                     operation.CreateEntity();
                     operation.SetParent(model);
-                    operation.CreateArray<uint>(0);
+                    operation.CreateArray<MeshVertexIndex>(0);
                     operation.AddComponent(new Name(name));
 
                     //reference the created mesh
@@ -434,7 +435,7 @@ namespace Models.Systems
                     operation.ResizeArray<MeshVertexPosition>(vertexCount);
                     operation.SetArrayElements(0, tempData.AsSpan());
 
-                    using List<uint> indices = new();
+                    using List<MeshVertexIndex> indices = new();
                     for (uint f = 0; f < faceCount; f++)
                     {
                         Face face = mesh->MFaces[f];
@@ -445,7 +446,7 @@ namespace Models.Systems
                         }
                     }
 
-                    operation.ResizeArray<uint>(indices.Count);
+                    operation.ResizeArray<MeshVertexIndex>(indices.Count);
                     operation.SetArrayElements(0, indices.AsSpan());
                 }
 
