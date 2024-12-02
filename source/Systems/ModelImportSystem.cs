@@ -4,7 +4,6 @@ using Meshes;
 using Meshes.Components;
 using Models.Components;
 using OpenAssetImporter;
-using Silk.NET.Assimp;
 using Simulation;
 using Simulation.Functions;
 using System;
@@ -18,7 +17,6 @@ namespace Models.Systems
 {
     public readonly struct ModelImportSystem : ISystem
     {
-        private readonly Library library;
         private readonly ComponentQuery<IsModelRequest> modelRequestQuery;
         private readonly ComponentQuery<IsMeshRequest> meshRequestQuery;
         private readonly ComponentQuery<IsModel> modelQuery;
@@ -54,18 +52,12 @@ namespace Models.Systems
 
         public ModelImportSystem()
         {
-            library = CreateAssimpLibrary();
             modelQuery = new();
             meshRequestQuery = new();
             modelRequestQuery = new();
             modelVersions = new();
             meshVersions = new();
             operations = new();
-        }
-
-        private static Library CreateAssimpLibrary()
-        {
-            return new();
         }
 
         private void CleanUp()
@@ -82,7 +74,6 @@ namespace Models.Systems
             modelRequestQuery.Dispose();
             meshRequestQuery.Dispose();
             modelQuery.Dispose();
-            library.Dispose();
         }
 
         private void Update(World world)
@@ -180,48 +171,48 @@ namespace Models.Systems
             Meshes.Mesh existingMesh = model[index];
             Entity existingMeshEntity = existingMesh;
             Operation operation = new();
-            operation.SelectEntity(mesh);
+            Operation.SelectedEntity selectedMesh = operation.SelectEntity(mesh);
 
             if (mesh.TryGetComponent(out IsMesh component))
             {
                 component.version++;
-                operation.SetComponent(component);
-                operation.SetComponent(new Name(existingMesh.Name));
+                selectedMesh.SetComponent(component);
+                selectedMesh.SetComponent(new Name(existingMesh.Name));
             }
             else
             {
                 //become a mesh now!
-                operation.AddComponent(new IsMesh());
-                operation.CreateArray<MeshVertexIndex>(0);
+                selectedMesh.AddComponent(new IsMesh());
+                selectedMesh.CreateArray<MeshVertexIndex>(0);
 
                 if (existingMesh.HasPositions)
                 {
-                    operation.CreateArray<MeshVertexPosition>(0);
+                    selectedMesh.CreateArray<MeshVertexPosition>(0);
                 }
 
                 if (existingMesh.HasUVs)
                 {
-                    operation.CreateArray<MeshVertexUV>(0);
+                    selectedMesh.CreateArray<MeshVertexUV>(0);
                 }
 
                 if (existingMesh.HasNormals)
                 {
-                    operation.CreateArray<MeshVertexNormal>(0);
+                    selectedMesh.CreateArray<MeshVertexNormal>(0);
                 }
 
                 if (existingMesh.HasTangents)
                 {
-                    operation.CreateArray<MeshVertexTangent>(0);
+                    selectedMesh.CreateArray<MeshVertexTangent>(0);
                 }
 
                 if (existingMesh.HasBiTangents)
                 {
-                    operation.CreateArray<MeshVertexBiTangent>(0);
+                    selectedMesh.CreateArray<MeshVertexBiTangent>(0);
                 }
 
                 if (existingMesh.HasColors)
                 {
-                    operation.CreateArray<MeshVertexColor>(0);
+                    selectedMesh.CreateArray<MeshVertexColor>(0);
                 }
             }
 
@@ -230,45 +221,45 @@ namespace Models.Systems
             {
                 USpan<MeshVertexPosition> positions = existingMeshEntity.GetArray<MeshVertexPosition>();
                 USpan<MeshVertexIndex> indices = existingMeshEntity.GetArray<MeshVertexIndex>();
-                operation.ResizeArray<MeshVertexIndex>(indices.Length);
-                operation.SetArrayElements(0, indices);
-                operation.ResizeArray<MeshVertexPosition>(positions.Length);
-                operation.SetArrayElements(0, positions);
+                selectedMesh.ResizeArray<MeshVertexIndex>(indices.Length);
+                selectedMesh.SetArrayElements(0, indices);
+                selectedMesh.ResizeArray<MeshVertexPosition>(positions.Length);
+                selectedMesh.SetArrayElements(0, positions);
             }
 
             if (existingMesh.HasUVs)
             {
                 USpan<MeshVertexUV> uvs = existingMeshEntity.GetArray<MeshVertexUV>();
-                operation.ResizeArray<MeshVertexUV>(uvs.Length);
-                operation.SetArrayElements(0, uvs);
+                selectedMesh.ResizeArray<MeshVertexUV>(uvs.Length);
+                selectedMesh.SetArrayElements(0, uvs);
             }
 
             if (existingMesh.HasNormals)
             {
                 USpan<MeshVertexNormal> normals = existingMeshEntity.GetArray<MeshVertexNormal>();
-                operation.ResizeArray<MeshVertexNormal>(normals.Length);
-                operation.SetArrayElements(0, normals);
+                selectedMesh.ResizeArray<MeshVertexNormal>(normals.Length);
+                selectedMesh.SetArrayElements(0, normals);
             }
 
             if (existingMesh.HasTangents)
             {
                 USpan<MeshVertexTangent> tangents = existingMeshEntity.GetArray<MeshVertexTangent>();
-                operation.ResizeArray<MeshVertexTangent>(tangents.Length);
-                operation.SetArrayElements(0, tangents);
+                selectedMesh.ResizeArray<MeshVertexTangent>(tangents.Length);
+                selectedMesh.SetArrayElements(0, tangents);
             }
 
             if (existingMesh.HasBiTangents)
             {
                 USpan<MeshVertexBiTangent> bitangents = existingMeshEntity.GetArray<MeshVertexBiTangent>();
-                operation.ResizeArray<MeshVertexBiTangent>(bitangents.Length);
-                operation.SetArrayElements(0, bitangents);
+                selectedMesh.ResizeArray<MeshVertexBiTangent>(bitangents.Length);
+                selectedMesh.SetArrayElements(0, bitangents);
             }
 
             if (existingMesh.HasColors)
             {
                 USpan<MeshVertexColor> colors = existingMeshEntity.GetArray<MeshVertexColor>();
-                operation.ResizeArray<MeshVertexColor>(colors.Length);
-                operation.SetArrayElements(0, colors);
+                selectedMesh.ResizeArray<MeshVertexColor>(colors.Length);
+                selectedMesh.SetArrayElements(0, colors);
             }
 
             operations.Add(operation);
@@ -307,13 +298,19 @@ namespace Models.Systems
         private unsafe uint ImportModel(Entity model, ref Operation operation, USpan<BinaryData> bytes, USpan<byte> hint)
         {
             World world = model.GetWorld();
-            Scene* scene = library.ImportModel(bytes.As<byte>(), hint);
+            USpan<char> hintString = stackalloc char[(int)hint.Length];
+            for (uint i = 0; i < hint.Length; i++)
+            {
+                hintString[i] = (char)hint[i];
+            }
+
+            using Scene scene = new(bytes.As<byte>().AsSystemSpan(), hintString.AsSystemSpan(), PostProcessSteps.Triangulate);
             bool containsMeshes = model.ContainsArray<ModelMesh>();
             uint existingMeshCount = containsMeshes ? model.GetArrayLength<ModelMesh>() : 0;
             operation.SelectEntity(model);
             uint referenceCount = model.GetReferenceCount();
             using List<ModelMesh> meshes = new();
-            ProcessNode(scene->MRootNode, scene, ref operation);
+            ProcessNode(scene.RootNode, scene, ref operation);
             operation.SelectEntity(model);
             if (containsMeshes)
             {
@@ -322,42 +319,41 @@ namespace Models.Systems
             }
             else
             {
-                operation.CreateArray<ModelMesh>(meshes.AsSpan());
+                operation.CreateArray(meshes.AsSpan());
             }
 
-            library.Release(scene);
             return meshes.Count;
 
-            void ProcessNode(Node* node, Scene* scene, ref Operation operation)
+            void ProcessNode(Node node, Scene scene, ref Operation operation)
             {
-                for (uint i = 0; i < node->MNumMeshes; i++)
+                for (int i = 0; i < node.Meshes.Length; i++)
                 {
-                    Silk.NET.Assimp.Mesh* mesh = scene->MMeshes[node->MMeshes[i]];
+                    OpenAssetImporter.Mesh mesh = scene.Meshes[node.Meshes[i]];
                     ProcessMesh(mesh, scene, ref operation, meshes);
                 }
 
-                for (uint i = 0; i < node->MNumChildren; i++)
+                for (int i = 0; i < node.Children.Length; i++)
                 {
-                    Node* child = node->MChildren[i];
+                    Node child = node.Children[i];
                     ProcessNode(child, scene, ref operation);
                 }
             }
 
-            void ProcessMesh(Silk.NET.Assimp.Mesh* mesh, Scene* scene, ref Operation operation, List<ModelMesh> meshes)
+            void ProcessMesh(OpenAssetImporter.Mesh mesh, Scene scene, ref Operation operation, List<ModelMesh> meshes)
             {
-                uint vertexCount = mesh->MNumVertices;
-                uint faceCount = mesh->MNumFaces;
-                Vector3* positions = mesh->MVertices;
-                Vector3* uvs = mesh->MTextureCoords.Element0;
-                Vector3* normals = mesh->MNormals;
-                Vector3* tangents = mesh->MTangents;
-                Vector3* biTangents = mesh->MBitangents;
-                Vector4* colors = mesh->MColors.Element0;
+                uint vertexCount = (uint)mesh.VertexCount;
+                uint faceCount = (uint)mesh.FaceCount;
+                Vector3* positions = (Vector3*)mesh.Vertices.AsUSpan().Pointer;
+                Vector3* uvs = (Vector3*)mesh.GetTextureCoordinates(0).AsUSpan().Pointer;
+                Vector3* normals = (Vector3*)mesh.Normals.AsUSpan().Pointer;
+                Vector3* tangents = (Vector3*)mesh.Tangents.AsUSpan().Pointer;
+                Vector3* biTangents = (Vector3*)mesh.BiTangents.AsUSpan().Pointer;
+                Vector4* colors = (Vector4*)mesh.GetColors(0).AsUSpan().Pointer;
 
                 //todo: accuracy: should reuse based on mesh name rather than index within the list, because the amount of meshes
                 //in the source asset could change, and could possibly shift around in order
                 uint meshIndex = meshes.Count;
-                string name = mesh->MName.ToString();
+                string name = mesh.Name;
                 bool meshReused = meshIndex < existingMeshCount;
                 Entity existingMesh = default;
                 ModelMesh modelMesh;
@@ -438,10 +434,10 @@ namespace Models.Systems
                     using List<MeshVertexIndex> indices = new();
                     for (uint f = 0; f < faceCount; f++)
                     {
-                        Face face = mesh->MFaces[f];
-                        for (uint i = 0; i < face.MNumIndices; i++)
+                        Face face = mesh.Faces[(int)f];
+                        for (uint i = 0; i < face.Indices.Length; i++)
                         {
-                            uint index = face.MIndices[i];
+                            uint index = (uint)face.Indices[(int)i];
                             indices.Add(index);
                         }
                     }
@@ -511,11 +507,11 @@ namespace Models.Systems
                     operation.SetArrayElements(0, tempData.AsSpan());
                 }
 
-                Material* material = scene->MMaterials[mesh->MMaterialIndex];
-                if (material is not null)
-                {
-                    //todo: handle materials
-                }
+                //Material? material = scene.MaterialCount > 0 ? scene.Materials[0] : null;
+                //if (material is not null)
+                //{
+                //    //todo: handle materials
+                //}
 
                 //increment mesh version
                 if (meshReused)

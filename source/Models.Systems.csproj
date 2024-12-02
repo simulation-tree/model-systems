@@ -22,13 +22,13 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Silk.NET.Assimp" Version="2.22.0" />
-		<PackageReference Include="System.Text.Json" Version="9.0.0" />
+	  <PackageReference Include="OpenAssetImporter" Version="0.0.6" />
 	</ItemGroup>
 
 	<ItemGroup>
 	  <ProjectReference Include="..\..\data\source\Data.csproj" />
-	  <ProjectReference Include="..\..\Models\source\Models.csproj" />
+	  <ProjectReference Include="..\..\simulation\source\Simulation.csproj" />
+	  <ProjectReference Include="..\..\models\source\Models.csproj" />
 	</ItemGroup>
 
 </Project>
