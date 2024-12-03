@@ -267,8 +267,8 @@ namespace Models.Systems
             Operation operation = new();
             USpan<BinaryData> byteData = model.GetArray<BinaryData>();
             ImportModel(model, operation, byteData, hint);
-            operation.ClearSelection();
 
+            operation.ClearSelection();
             Operation.SelectedEntity selectedEntity = operation.SelectEntity(model);
             if (model.TryGetComponent(out IsModel component))
             {
@@ -358,7 +358,6 @@ namespace Models.Systems
                 else
                 {
                     //create new mesh
-                    operation.ClearSelection();
                     operation.CreateEntity();
                     operation.SetParent(model);
                     operation.CreateArray<MeshVertexIndex>(0);
