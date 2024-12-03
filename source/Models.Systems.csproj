@@ -10,25 +10,29 @@
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-	  <IsAotCompatible>True</IsAotCompatible>
-	  <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
-	  <WarningLevel>8</WarningLevel>
+		<IsAotCompatible>True</IsAotCompatible>
+		<TreatWarningsAsErrors>True</TreatWarningsAsErrors>
+		<WarningLevel>8</WarningLevel>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-	  <IsAotCompatible>True</IsAotCompatible>
-	  <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
-	  <WarningLevel>8</WarningLevel>
+		<IsAotCompatible>True</IsAotCompatible>
+		<TreatWarningsAsErrors>True</TreatWarningsAsErrors>
+		<WarningLevel>8</WarningLevel>
 	</PropertyGroup>
 
 	<ItemGroup>
-	  <PackageReference Include="OpenAssetImporter" Version="0.0.6" />
+		<PackageReference Include="OpenAssetImporter" Version="0.0.6" />
 	</ItemGroup>
 
 	<ItemGroup>
-	  <ProjectReference Include="..\..\data\source\Data.csproj" />
-	  <ProjectReference Include="..\..\simulation\source\Simulation.csproj" />
-	  <ProjectReference Include="..\..\models\source\Models.csproj" />
+		<ProjectReference Include="..\..\data\source\Data.csproj" />
+		<ProjectReference Include="..\..\simulation\source\Simulation.csproj" />
+		<ProjectReference Include="..\..\models\source\Models.csproj" />
+		<ProjectReference Include="..\..\simulation\generator\Simulation.ImplementationGenerators.csproj">
+			<OutputItemType>Analyzer</OutputItemType>
+			<ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+		</ProjectReference>
 	</ItemGroup>
 
 </Project>
