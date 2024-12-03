@@ -266,25 +266,25 @@ namespace Models.Systems
 
             Operation operation = new();
             USpan<BinaryData> byteData = model.GetArray<BinaryData>();
-            ImportModel(model, ref operation, byteData, hint);
-
+            ImportModel(model, operation, byteData, hint);
             operation.ClearSelection();
-            operation.SelectEntity(model);
+
+            Operation.SelectedEntity selectedEntity = operation.SelectEntity(model);
             if (model.TryGetComponent(out IsModel component))
             {
                 component.version++;
-                operation.SetComponent(component);
+                selectedEntity.SetComponent(component);
             }
             else
             {
-                operation.AddComponent(new IsModel());
+                selectedEntity.AddComponent(new IsModel());
             }
 
             operations.Add(operation);
             return true;
         }
 
-        private unsafe uint ImportModel(Entity model, ref Operation operation, USpan<BinaryData> bytes, USpan<byte> hint)
+        private unsafe uint ImportModel(Entity model, Operation operation, USpan<BinaryData> bytes, USpan<byte> hint)
         {
             World world = model.GetWorld();
             USpan<char> hintString = stackalloc char[(int)hint.Length];
@@ -299,7 +299,7 @@ namespace Models.Systems
             operation.SelectEntity(model);
             uint referenceCount = model.GetReferenceCount();
             using List<ModelMesh> meshes = new();
-            ProcessNode(scene.RootNode, scene, ref operation);
+            ProcessNode(scene.RootNode, scene, operation);
             operation.SelectEntity(model);
             if (containsMeshes)
             {
@@ -313,22 +313,22 @@ namespace Models.Systems
 
             return meshes.Count;
 
-            void ProcessNode(Node node, Scene scene, ref Operation operation)
+            void ProcessNode(Node node, Scene scene, Operation operation)
             {
                 for (int i = 0; i < node.Meshes.Length; i++)
                 {
                     OpenAssetImporter.Mesh mesh = scene.Meshes[node.Meshes[i]];
-                    ProcessMesh(mesh, scene, ref operation, meshes);
+                    ProcessMesh(mesh, scene, operation, meshes);
                 }
 
                 for (int i = 0; i < node.Children.Length; i++)
                 {
                     Node child = node.Children[i];
-                    ProcessNode(child, scene, ref operation);
+                    ProcessNode(child, scene, operation);
                 }
             }
 
-            void ProcessMesh(OpenAssetImporter.Mesh mesh, Scene scene, ref Operation operation, List<ModelMesh> meshes)
+            void ProcessMesh(OpenAssetImporter.Mesh mesh, Scene scene, Operation operation, List<ModelMesh> meshes)
             {
                 uint vertexCount = (uint)mesh.VertexCount;
                 uint faceCount = (uint)mesh.FaceCount;
