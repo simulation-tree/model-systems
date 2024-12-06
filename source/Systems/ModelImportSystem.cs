@@ -15,12 +15,16 @@ namespace Models.Systems
 {
     public readonly partial struct ModelImportSystem : ISystem
     {
-        private readonly ComponentQuery<IsModelRequest> modelRequestQuery;
-        private readonly ComponentQuery<IsMeshRequest> meshRequestQuery;
-        private readonly ComponentQuery<IsModel> modelQuery;
         private readonly Dictionary<Entity, uint> modelVersions;
         private readonly Dictionary<Entity, uint> meshVersions;
         private readonly List<Operation> operations;
+
+        public ModelImportSystem()
+        {
+            modelVersions = new();
+            meshVersions = new();
+            operations = new();
+        }
 
         void ISystem.Start(in SystemContainer systemContainer, in World world)
         {
@@ -28,60 +32,13 @@ namespace Models.Systems
 
         void ISystem.Update(in SystemContainer systemContainer, in World world, in TimeSpan delta)
         {
-            Update(world);
-        }
-
-        void ISystem.Finish(in SystemContainer systemContainer, in World world)
-        {
-            if (systemContainer.World == world)
-            {
-                CleanUp();
-            }
-        }
-
-        public ModelImportSystem()
-        {
-            modelQuery = new();
-            meshRequestQuery = new();
-            modelRequestQuery = new();
-            modelVersions = new();
-            meshVersions = new();
-            operations = new();
-        }
-
-        private void CleanUp()
-        {
-            while (operations.Count > 0)
-            {
-                Operation operation = operations.RemoveAt(0);
-                operation.Dispose();
-            }
-
-            operations.Dispose();
-            meshVersions.Dispose();
-            modelVersions.Dispose();
-            modelRequestQuery.Dispose();
-            meshRequestQuery.Dispose();
-            modelQuery.Dispose();
-        }
-
-        private void Update(World world)
-        {
-            UpdateModels(world);
-            PerformOperations(world);
-            UpdateMeshes(world);
-            PerformOperations(world);
-        }
-
-        private void UpdateModels(World world)
-        {
-            modelRequestQuery.Update(world);
             USpan<byte> hint = stackalloc byte[8];
-            foreach (var x in modelRequestQuery)
+            ComponentQuery<IsModelRequest> modelRequestQuery = new(world);
+            foreach (var r in modelRequestQuery)
             {
-                IsModelRequest request = x.Component1;
                 bool sourceChanged = false;
-                Entity model = new(world, x.entity);
+                ref IsModelRequest request = ref r.component1;
+                Entity model = new(world, r.entity);
                 if (!modelVersions.ContainsKey(model))
                 {
                     sourceChanged = true;
@@ -93,25 +50,22 @@ namespace Models.Systems
 
                 if (sourceChanged)
                 {
-                    //ThreadPool.QueueUserWorkItem(UpdateMeshReferencesOnModelEntity, modelEntity, false);
                     uint hintLength = request.CopyExtensionBytes(hint);
-                    if (TryFinishModelRequest(model, hint.Slice(0, hintLength)))
+                    if (TryLoadModel(model, hint.Slice(0, hintLength)))
                     {
                         modelVersions.AddOrSet(model, request.version);
                     }
                 }
             }
-        }
 
-        private void UpdateMeshes(World world)
-        {
-            meshRequestQuery.Update(world);
-            foreach (var x in meshRequestQuery)
+            PerformOperations(world);
+
+            ComponentQuery<IsMeshRequest> meshRequestQuery = new(world);
+            foreach (var r in meshRequestQuery)
             {
-                IsMeshRequest request = x.Component1;
-                bool sourceChanged = false;
-                //uint meshEntity = x.entity;
-                Entity mesh = new(world, x.entity);
+                ref IsMeshRequest request = ref r.component1;
+                bool sourceChanged;
+                Entity mesh = new(world, r.entity);
                 if (!meshVersions.ContainsKey(mesh))
                 {
                     sourceChanged = true;
@@ -123,16 +77,34 @@ namespace Models.Systems
 
                 if (sourceChanged)
                 {
-                    //ThreadPool.QueueUserWorkItem(UpdateMesh, (meshEntity, request), false);
-                    if (TryFinishMeshRequest((mesh, request)))
+                    if (TryLoadMesh(mesh, request))
                     {
                         meshVersions.AddOrSet(mesh, request.version);
                     }
                 }
             }
+
+            PerformOperations(world);
         }
 
-        private void PerformOperations(World world)
+        void ISystem.Finish(in SystemContainer systemContainer, in World world)
+        {
+        }
+
+        void IDisposable.Dispose()
+        {
+            while (operations.Count > 0)
+            {
+                Operation operation = operations.RemoveAt(0);
+                operation.Dispose();
+            }
+
+            operations.Dispose();
+            meshVersions.Dispose();
+            modelVersions.Dispose();
+        }
+
+        private readonly void PerformOperations(World world)
         {
             while (operations.Count > 0)
             {
@@ -142,12 +114,11 @@ namespace Models.Systems
             }
         }
 
-        private bool TryFinishMeshRequest((Entity mesh, IsMeshRequest request) input)
+        private readonly bool TryLoadMesh(Entity mesh, IsMeshRequest request)
         {
-            Entity mesh = input.mesh;
             World world = mesh.GetWorld();
-            uint index = input.request.meshIndex;
-            rint modelReference = input.request.modelReference;
+            uint index = request.meshIndex;
+            rint modelReference = request.modelReference;
             uint modelEntity = mesh.GetReference(modelReference);
 
             //wait for model data to load
@@ -161,11 +132,11 @@ namespace Models.Systems
             Entity existingMeshEntity = existingMesh;
             Operation operation = new();
             Operation.SelectedEntity selectedMesh = operation.SelectEntity(mesh);
-
-            if (mesh.TryGetComponent(out IsMesh component))
+            ref IsMesh component = ref mesh.TryGetComponent<IsMesh>(out bool contains);
+            if (contains)
             {
                 component.version++;
-                selectedMesh.SetComponent(component);
+                selectedMesh.SetComponent(new IsMesh(component.version + 1));
                 selectedMesh.SetComponent(new Name(existingMesh.Name));
             }
             else
@@ -255,7 +226,7 @@ namespace Models.Systems
             return true;
         }
 
-        private bool TryFinishModelRequest(Entity model, USpan<byte> hint)
+        private bool TryLoadModel(Entity model, USpan<byte> hint)
         {
             //wait for byte data to be available
             if (!model.ContainsArray<BinaryData>())
@@ -270,10 +241,10 @@ namespace Models.Systems
 
             operation.ClearSelection();
             Operation.SelectedEntity selectedEntity = operation.SelectEntity(model);
-            if (model.TryGetComponent(out IsModel component))
+            ref IsModel component = ref model.TryGetComponent<IsModel>(out bool contains);
+            if (contains)
             {
-                component.version++;
-                selectedEntity.SetComponent(component);
+                selectedEntity.SetComponent(new IsModel(component.version + 1));
             }
             else
             {
@@ -284,7 +255,7 @@ namespace Models.Systems
             return true;
         }
 
-        private unsafe uint ImportModel(Entity model, Operation operation, USpan<BinaryData> bytes, USpan<byte> hint)
+        private readonly unsafe uint ImportModel(Entity model, Operation operation, USpan<BinaryData> bytes, USpan<byte> hint)
         {
             World world = model.GetWorld();
             USpan<char> hintString = stackalloc char[(int)hint.Length];
@@ -349,7 +320,7 @@ namespace Models.Systems
                 if (meshReused)
                 {
                     //reset existing mesh
-                    rint existingMeshReference = model.GetArrayElementRef<ModelMesh>(meshIndex).value;
+                    rint existingMeshReference = model.GetArrayElement<ModelMesh>(meshIndex).value;
                     existingMesh = new(world, model.GetReference(existingMeshReference));
                     operation.SelectEntity(existingMesh);
                     operation.SetComponent(new Name(name));
@@ -504,10 +475,11 @@ namespace Models.Systems
                 //increment mesh version
                 if (meshReused)
                 {
-                    if (existingMesh.TryGetComponent(out IsMesh component))
+                    ref IsMesh component = ref existingMesh.TryGetComponent<IsMesh>(out bool contains);
+                    if (contains)
                     {
                         component.version++;
-                        operation.SetComponent(component);
+                        operation.SetComponent(new IsMesh(component.version + 1));
                     }
                     else
                     {

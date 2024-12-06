@@ -23,7 +23,6 @@ namespace Models.Tests
             ComponentType.Register<IsDataSource>();
             ComponentType.Register<IsData>();
             ComponentType.Register<IsProgram>();
-            ComponentType.Register<ProgramAllocation>();
             ArrayType.Register<BinaryData>();
             ComponentType.Register<Name>();
             ComponentType.Register<IsMesh>();
@@ -38,8 +37,8 @@ namespace Models.Tests
             ArrayType.Register<MeshVertexTangent>();
             ArrayType.Register<MeshVertexBiTangent>();
             ArrayType.Register<MeshVertexIndex>();
-            Simulator.AddSystem<DataImportSystem>();
-            Simulator.AddSystem<ModelImportSystem>();
+            Simulator.AddSystem(new DataImportSystem());
+            Simulator.AddSystem(new ModelImportSystem());
         }
 
         [Test, CancelAfter(1700)]
