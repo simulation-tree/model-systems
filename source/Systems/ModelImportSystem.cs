@@ -19,15 +19,22 @@ namespace Models.Systems
         private readonly Dictionary<Entity, uint> meshVersions;
         private readonly List<Operation> operations;
 
-        public ModelImportSystem()
+        private ModelImportSystem(Dictionary<Entity, uint> modelVersions, Dictionary<Entity, uint> meshVersions, List<Operation> operations)
         {
-            modelVersions = new();
-            meshVersions = new();
-            operations = new();
+            this.modelVersions = modelVersions;
+            this.meshVersions = meshVersions;
+            this.operations = operations;
         }
 
         void ISystem.Start(in SystemContainer systemContainer, in World world)
         {
+            if (systemContainer.World == world)
+            {
+                Dictionary<Entity, uint> modelVersions = new();
+                Dictionary<Entity, uint> meshVersions = new();
+                List<Operation> operations = new();
+                systemContainer.Write(new ModelImportSystem(modelVersions, meshVersions, operations));
+            }
         }
 
         void ISystem.Update(in SystemContainer systemContainer, in World world, in TimeSpan delta)

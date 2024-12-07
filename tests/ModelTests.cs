@@ -37,8 +37,8 @@ namespace Models.Tests
             ArrayType.Register<MeshVertexTangent>();
             ArrayType.Register<MeshVertexBiTangent>();
             ArrayType.Register<MeshVertexIndex>();
-            Simulator.AddSystem(new DataImportSystem());
-            Simulator.AddSystem(new ModelImportSystem());
+            Simulator.AddSystem<DataImportSystem>();
+            Simulator.AddSystem<ModelImportSystem>();
         }
 
         [Test, CancelAfter(1700)]
