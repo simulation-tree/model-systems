@@ -1,4 +1,5 @@
 ﻿using Collections;
+using Data;
 using Data.Components;
 using Meshes;
 using Meshes.Components;
@@ -143,7 +144,7 @@ namespace Models.Systems
             {
                 component.version++;
                 selectedMesh.SetComponent(new IsMesh(component.version + 1));
-                selectedMesh.SetComponent(new Name(existingMesh.Name));
+                selectedMesh.SetComponent(new Name(existingMesh.GetName()));
             }
             else
             {
@@ -151,39 +152,39 @@ namespace Models.Systems
                 selectedMesh.AddComponent(new IsMesh());
                 selectedMesh.CreateArray<MeshVertexIndex>(0);
 
-                if (existingMesh.HasPositions)
+                if (existingMesh.HasPositions())
                 {
                     selectedMesh.CreateArray<MeshVertexPosition>(0);
                 }
 
-                if (existingMesh.HasUVs)
+                if (existingMesh.HasUVs())
                 {
                     selectedMesh.CreateArray<MeshVertexUV>(0);
                 }
 
-                if (existingMesh.HasNormals)
+                if (existingMesh.HasNormals())
                 {
                     selectedMesh.CreateArray<MeshVertexNormal>(0);
                 }
 
-                if (existingMesh.HasTangents)
+                if (existingMesh.HasTangents())
                 {
                     selectedMesh.CreateArray<MeshVertexTangent>(0);
                 }
 
-                if (existingMesh.HasBiTangents)
+                if (existingMesh.HasBiTangents())
                 {
                     selectedMesh.CreateArray<MeshVertexBiTangent>(0);
                 }
 
-                if (existingMesh.HasColors)
+                if (existingMesh.HasColors())
                 {
                     selectedMesh.CreateArray<MeshVertexColor>(0);
                 }
             }
 
             //copy each channel
-            if (existingMesh.HasPositions)
+            if (existingMesh.HasPositions())
             {
                 USpan<MeshVertexPosition> positions = existingMeshEntity.GetArray<MeshVertexPosition>();
                 USpan<MeshVertexIndex> indices = existingMeshEntity.GetArray<MeshVertexIndex>();
@@ -193,35 +194,35 @@ namespace Models.Systems
                 selectedMesh.SetArrayElements(0, positions);
             }
 
-            if (existingMesh.HasUVs)
+            if (existingMesh.HasUVs())
             {
                 USpan<MeshVertexUV> uvs = existingMeshEntity.GetArray<MeshVertexUV>();
                 selectedMesh.ResizeArray<MeshVertexUV>(uvs.Length);
                 selectedMesh.SetArrayElements(0, uvs);
             }
 
-            if (existingMesh.HasNormals)
+            if (existingMesh.HasNormals())
             {
                 USpan<MeshVertexNormal> normals = existingMeshEntity.GetArray<MeshVertexNormal>();
                 selectedMesh.ResizeArray<MeshVertexNormal>(normals.Length);
                 selectedMesh.SetArrayElements(0, normals);
             }
 
-            if (existingMesh.HasTangents)
+            if (existingMesh.HasTangents())
             {
                 USpan<MeshVertexTangent> tangents = existingMeshEntity.GetArray<MeshVertexTangent>();
                 selectedMesh.ResizeArray<MeshVertexTangent>(tangents.Length);
                 selectedMesh.SetArrayElements(0, tangents);
             }
 
-            if (existingMesh.HasBiTangents)
+            if (existingMesh.HasBiTangents())
             {
                 USpan<MeshVertexBiTangent> bitangents = existingMeshEntity.GetArray<MeshVertexBiTangent>();
                 selectedMesh.ResizeArray<MeshVertexBiTangent>(bitangents.Length);
                 selectedMesh.SetArrayElements(0, bitangents);
             }
 
-            if (existingMesh.HasColors)
+            if (existingMesh.HasColors())
             {
                 USpan<MeshVertexColor> colors = existingMeshEntity.GetArray<MeshVertexColor>();
                 selectedMesh.ResizeArray<MeshVertexColor>(colors.Length);
