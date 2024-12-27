@@ -5,7 +5,6 @@ using Meshes;
 using Meshes.Components;
 using Models.Components;
 using Models.Systems;
-using Simulation.Components;
 using Simulation.Tests;
 using System.Numerics;
 using System.Threading;
@@ -16,36 +15,56 @@ namespace Models.Tests
 {
     public class ModelTests : SimulationTests
     {
+        static ModelTests()
+        {
+            TypeLayout.Register<IsDataRequest>("IsDataRequest");
+            TypeLayout.Register<IsDataSource>("IsDataSource");
+            TypeLayout.Register<IsData>("IsData");
+            TypeLayout.Register<BinaryData>("BinaryData");
+            TypeLayout.Register<Name>("Name");
+            TypeLayout.Register<IsMesh>("IsMesh");
+            TypeLayout.Register<IsMeshRequest>("IsMeshRequest");
+            TypeLayout.Register<IsModel>("IsModel");
+            TypeLayout.Register<IsModelRequest>("IsModelRequest");
+            TypeLayout.Register<ModelMesh>("ModelMesh");
+            TypeLayout.Register<MeshVertexPosition>("MeshVertexPosition");
+            TypeLayout.Register<MeshVertexNormal>("MeshVertexNormal");
+            TypeLayout.Register<MeshVertexUV>("MeshVertexUV");
+            TypeLayout.Register<MeshVertexColor>("MeshVertexColor");
+            TypeLayout.Register<MeshVertexTangent>("MeshVertexTangent");
+            TypeLayout.Register<MeshVertexBiTangent>("MeshVertexBiTangent");
+            TypeLayout.Register<MeshVertexIndex>("MeshVertexIndex");
+        }
+
         protected override void SetUp()
         {
             base.SetUp();
-            ComponentType.Register<IsDataRequest>();
-            ComponentType.Register<IsDataSource>();
-            ComponentType.Register<IsData>();
-            ComponentType.Register<IsProgram>();
-            ArrayType.Register<BinaryData>();
-            ComponentType.Register<Name>();
-            ComponentType.Register<IsMesh>();
-            ComponentType.Register<IsMeshRequest>();
-            ComponentType.Register<IsModel>();
-            ComponentType.Register<IsModelRequest>();
-            ArrayType.Register<ModelMesh>();
-            ArrayType.Register<MeshVertexPosition>();
-            ArrayType.Register<MeshVertexNormal>();
-            ArrayType.Register<MeshVertexUV>();
-            ArrayType.Register<MeshVertexColor>();
-            ArrayType.Register<MeshVertexTangent>();
-            ArrayType.Register<MeshVertexBiTangent>();
-            ArrayType.Register<MeshVertexIndex>();
-            Simulator.AddSystem<DataImportSystem>();
-            Simulator.AddSystem<ModelImportSystem>();
+            world.Schema.RegisterComponent<IsDataRequest>();
+            world.Schema.RegisterComponent<IsDataSource>();
+            world.Schema.RegisterComponent<IsData>();
+            world.Schema.RegisterComponent<Name>();
+            world.Schema.RegisterComponent<IsMesh>();
+            world.Schema.RegisterComponent<IsMeshRequest>();
+            world.Schema.RegisterComponent<IsModel>();
+            world.Schema.RegisterComponent<IsModelRequest>();
+            world.Schema.RegisterArrayElement<BinaryData>();
+            world.Schema.RegisterArrayElement<ModelMesh>();
+            world.Schema.RegisterArrayElement<MeshVertexPosition>();
+            world.Schema.RegisterArrayElement<MeshVertexNormal>();
+            world.Schema.RegisterArrayElement<MeshVertexUV>();
+            world.Schema.RegisterArrayElement<MeshVertexColor>();
+            world.Schema.RegisterArrayElement<MeshVertexTangent>();
+            world.Schema.RegisterArrayElement<MeshVertexBiTangent>();
+            world.Schema.RegisterArrayElement<MeshVertexIndex>();
+            simulator.AddSystem<DataImportSystem>();
+            simulator.AddSystem<ModelImportSystem>();
         }
 
         [Test, CancelAfter(1700)]
         public async Task ImportSimpleCube(CancellationToken cancellation)
         {
-            DataSource entity = new(World, "cube.fbx", CubeFBX.bytes);
-            Model model = new(World, "cube.fbx");
+            DataSource entity = new(world, "cube.fbx", CubeFBX.bytes);
+            Model model = new(world, "cube.fbx");
 
             await model.UntilCompliant(Simulate, cancellation);
 
@@ -60,9 +79,9 @@ namespace Models.Tests
         [Test, CancelAfter(1000)]
         public async Task ImportThroughMeshRequest(CancellationToken cancellation)
         {
-            DataSource entity = new(World, "cube.fbx", CubeFBX.bytes);
-            Model cubeModel = new(World, "cube.fbx");
-            Mesh cubeMesh = new(World, cubeModel);
+            DataSource entity = new(world, "cube.fbx", CubeFBX.bytes);
+            Model cubeModel = new(world, "cube.fbx");
+            Mesh cubeMesh = new(world, cubeModel);
 
             await cubeMesh.UntilCompliant(Simulate, cancellation);
 
