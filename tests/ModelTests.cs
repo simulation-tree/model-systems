@@ -17,23 +17,23 @@ namespace Models.Tests
     {
         static ModelTests()
         {
-            TypeLayout.Register<IsDataRequest>("IsDataRequest");
-            TypeLayout.Register<IsDataSource>("IsDataSource");
-            TypeLayout.Register<IsData>("IsData");
-            TypeLayout.Register<BinaryData>("BinaryData");
-            TypeLayout.Register<Name>("Name");
-            TypeLayout.Register<IsMesh>("IsMesh");
-            TypeLayout.Register<IsMeshRequest>("IsMeshRequest");
-            TypeLayout.Register<IsModel>("IsModel");
-            TypeLayout.Register<IsModelRequest>("IsModelRequest");
-            TypeLayout.Register<ModelMesh>("ModelMesh");
-            TypeLayout.Register<MeshVertexPosition>("MeshVertexPosition");
-            TypeLayout.Register<MeshVertexNormal>("MeshVertexNormal");
-            TypeLayout.Register<MeshVertexUV>("MeshVertexUV");
-            TypeLayout.Register<MeshVertexColor>("MeshVertexColor");
-            TypeLayout.Register<MeshVertexTangent>("MeshVertexTangent");
-            TypeLayout.Register<MeshVertexBiTangent>("MeshVertexBiTangent");
-            TypeLayout.Register<MeshVertexIndex>("MeshVertexIndex");
+            TypeLayout.Register<IsDataRequest>();
+            TypeLayout.Register<IsDataSource>();
+            TypeLayout.Register<IsData>();
+            TypeLayout.Register<BinaryData>();
+            TypeLayout.Register<Name>();
+            TypeLayout.Register<IsMesh>();
+            TypeLayout.Register<IsMeshRequest>();
+            TypeLayout.Register<IsModel>();
+            TypeLayout.Register<IsModelRequest>();
+            TypeLayout.Register<ModelMesh>();
+            TypeLayout.Register<MeshVertexPosition>();
+            TypeLayout.Register<MeshVertexNormal>();
+            TypeLayout.Register<MeshVertexUV>();
+            TypeLayout.Register<MeshVertexColor>();
+            TypeLayout.Register<MeshVertexTangent>();
+            TypeLayout.Register<MeshVertexBiTangent>();
+            TypeLayout.Register<MeshVertexIndex>();
         }
 
         protected override void SetUp()
