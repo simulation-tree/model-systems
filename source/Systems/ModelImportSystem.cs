@@ -18,9 +18,9 @@ namespace Models.Systems
     {
         private readonly Dictionary<Entity, uint> modelVersions;
         private readonly Dictionary<Entity, uint> meshVersions;
-        private readonly List<Operation> operations;
+        private readonly Stack<Operation> operations;
 
-        private ModelImportSystem(Dictionary<Entity, uint> modelVersions, Dictionary<Entity, uint> meshVersions, List<Operation> operations)
+        private ModelImportSystem(Dictionary<Entity, uint> modelVersions, Dictionary<Entity, uint> meshVersions, Stack<Operation> operations)
         {
             this.modelVersions = modelVersions;
             this.meshVersions = meshVersions;
@@ -33,7 +33,7 @@ namespace Models.Systems
             {
                 Dictionary<Entity, uint> modelVersions = new();
                 Dictionary<Entity, uint> meshVersions = new();
-                List<Operation> operations = new();
+                Stack<Operation> operations = new();
                 systemContainer.Write(new ModelImportSystem(modelVersions, meshVersions, operations));
             }
         }
@@ -100,9 +100,8 @@ namespace Models.Systems
         {
             if (systemContainer.World == world)
             {
-                while (operations.Count > 0)
+                while (operations.TryPop(out Operation operation))
                 {
-                    Operation operation = operations.RemoveAt(0);
                     operation.Dispose();
                 }
 
@@ -114,9 +113,8 @@ namespace Models.Systems
 
         private readonly void PerformOperations(World world)
         {
-            while (operations.Count > 0)
+            while (operations.TryPop(out Operation operation))
             {
-                Operation operation = operations.RemoveAt(0);
                 world.Perform(operation);
                 operation.Dispose();
             }
@@ -231,7 +229,7 @@ namespace Models.Systems
                 selectedMesh.SetArrayElements(0, colors, schema);
             }
 
-            operations.Add(operation);
+            operations.Push(operation);
             return true;
         }
 
@@ -260,7 +258,7 @@ namespace Models.Systems
                 selectedEntity.AddComponent(new IsModel(), schema);
             }
 
-            operations.Add(operation);
+            operations.Push(operation);
             return true;
         }
 
