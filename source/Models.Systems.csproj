@@ -26,8 +26,8 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\..\data\source\Data.csproj" />
-		<ProjectReference Include="..\..\simulation\source\Simulation.csproj" />
+		<ProjectReference Include="..\..\data\core\Data.Core.csproj" />
+		<ProjectReference Include="..\..\simulation\core\Simulation.Core.csproj" />
 		<ProjectReference Include="..\..\models\source\Models.csproj" />
 		<ProjectReference Include="..\..\simulation\generator\Simulation.Generator.csproj">
 			<OutputItemType>Analyzer</OutputItemType>
