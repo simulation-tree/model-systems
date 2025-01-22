@@ -311,12 +311,12 @@ namespace Models.Systems
             {
                 uint vertexCount = (uint)mesh.VertexCount;
                 uint faceCount = (uint)mesh.FaceCount;
-                Vector3* positions = (Vector3*)mesh.Vertices.AsUSpan().Pointer;
-                Vector3* uvs = (Vector3*)mesh.GetTextureCoordinates(0).AsUSpan().Pointer;
-                Vector3* normals = (Vector3*)mesh.Normals.AsUSpan().Pointer;
-                Vector3* tangents = (Vector3*)mesh.Tangents.AsUSpan().Pointer;
-                Vector3* biTangents = (Vector3*)mesh.BiTangents.AsUSpan().Pointer;
-                Vector4* colors = (Vector4*)mesh.GetColors(0).AsUSpan().Pointer;
+                Vector3* positions = GetPointer<Vector3>(mesh.Vertices);
+                Vector3* uvs = GetPointer<Vector3>(mesh.GetTextureCoordinates(0));
+                Vector3* normals = GetPointer<Vector3>(mesh.Normals);
+                Vector3* tangents = GetPointer<Vector3>(mesh.Tangents);
+                Vector3* biTangents = GetPointer<Vector3>(mesh.BiTangents);
+                Vector4* colors = GetPointer<Vector4>(mesh.GetColors(0));
 
                 //todo: accuracy: should reuse based on mesh name rather than index within the list, because the amount of meshes
                 //in the source asset could change, and could possibly shift around in order
@@ -499,6 +499,11 @@ namespace Models.Systems
                     operation.AddComponent(new IsMesh(), schema);
                 }
             }
+        }
+
+        private unsafe static T* GetPointer<T>(USpan<T> span) where T : unmanaged
+        {
+            return span.Pointer;
         }
     }
 }
