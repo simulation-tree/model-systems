@@ -272,7 +272,7 @@ namespace Models.Systems
                 hintString[i] = (char)hint[i];
             }
 
-            using Scene scene = new(bytes.As<byte>().AsSystemSpan(), hintString.AsSystemSpan(), PostProcessSteps.Triangulate);
+            using Scene scene = new(bytes.As<byte>(), hintString, PostProcessSteps.Triangulate);
             bool containsMeshes = model.ContainsArray<ModelMesh>();
             uint existingMeshCount = containsMeshes ? model.GetArrayLength<ModelMesh>() : 0;
             operation.SelectEntity(model);
