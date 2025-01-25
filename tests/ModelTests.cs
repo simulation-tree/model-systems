@@ -1,66 +1,14 @@
 ﻿using Data;
-using Data.Components;
-using Data.Systems;
 using Meshes;
-using Meshes.Components;
-using Models.Components;
-using Models.Systems;
-using Simulation.Tests;
 using System.Numerics;
 using System.Threading;
 using System.Threading.Tasks;
-using Types;
 using Worlds;
 
 namespace Models.Tests
 {
-    public class ModelTests : SimulationTests
+    public class ModelImportTests : ModelSystemsTests
     {
-        static ModelTests()
-        {
-            TypeLayout.Register<IsDataRequest>();
-            TypeLayout.Register<IsDataSource>();
-            TypeLayout.Register<IsData>();
-            TypeLayout.Register<BinaryData>();
-            TypeLayout.Register<Name>();
-            TypeLayout.Register<IsMesh>();
-            TypeLayout.Register<IsMeshRequest>();
-            TypeLayout.Register<IsModel>();
-            TypeLayout.Register<IsModelRequest>();
-            TypeLayout.Register<ModelMesh>();
-            TypeLayout.Register<MeshVertexPosition>();
-            TypeLayout.Register<MeshVertexNormal>();
-            TypeLayout.Register<MeshVertexUV>();
-            TypeLayout.Register<MeshVertexColor>();
-            TypeLayout.Register<MeshVertexTangent>();
-            TypeLayout.Register<MeshVertexBiTangent>();
-            TypeLayout.Register<MeshVertexIndex>();
-        }
-
-        protected override void SetUp()
-        {
-            base.SetUp();
-            world.Schema.RegisterComponent<IsDataRequest>();
-            world.Schema.RegisterComponent<IsDataSource>();
-            world.Schema.RegisterComponent<IsData>();
-            world.Schema.RegisterComponent<Name>();
-            world.Schema.RegisterComponent<IsMesh>();
-            world.Schema.RegisterComponent<IsMeshRequest>();
-            world.Schema.RegisterComponent<IsModel>();
-            world.Schema.RegisterComponent<IsModelRequest>();
-            world.Schema.RegisterArrayElement<BinaryData>();
-            world.Schema.RegisterArrayElement<ModelMesh>();
-            world.Schema.RegisterArrayElement<MeshVertexPosition>();
-            world.Schema.RegisterArrayElement<MeshVertexNormal>();
-            world.Schema.RegisterArrayElement<MeshVertexUV>();
-            world.Schema.RegisterArrayElement<MeshVertexColor>();
-            world.Schema.RegisterArrayElement<MeshVertexTangent>();
-            world.Schema.RegisterArrayElement<MeshVertexBiTangent>();
-            world.Schema.RegisterArrayElement<MeshVertexIndex>();
-            simulator.AddSystem<DataImportSystem>();
-            simulator.AddSystem<ModelImportSystem>();
-        }
-
         [Test, CancelAfter(1700)]
         public async Task ImportSimpleCube(CancellationToken cancellation)
         {
