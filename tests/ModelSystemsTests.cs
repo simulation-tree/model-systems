@@ -10,7 +10,7 @@ namespace Models.Tests
     {
         static ModelSystemsTests()
         {
-            TypeRegistry.Load<Data.TypeBank>();
+            TypeRegistry.Load<Data.Core.TypeBank>();
             TypeRegistry.Load<Meshes.TypeBank>();
             TypeRegistry.Load<Models.TypeBank>();
         }
@@ -25,7 +25,7 @@ namespace Models.Tests
         protected override Schema CreateSchema()
         {
             Schema schema = base.CreateSchema();
-            schema.Load<Data.SchemaBank>();
+            schema.Load<Data.Core.SchemaBank>();
             schema.Load<Meshes.SchemaBank>();
             schema.Load<Models.SchemaBank>();
             return schema;
