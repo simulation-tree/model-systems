@@ -35,13 +35,48 @@ jobs:
           repository: game-simulations/types
           token: ${{ secrets.PAT }}
           path: types
-    
+
       - name: Checkout `worlds`
         uses: actions/checkout@v4.1.2
         with:
           repository: game-simulations/worlds
           token: ${{ secrets.PAT }}
           path: worlds
+
+      - name: Checkout `simulator`
+        uses: actions/checkout@v4.1.2
+        with:
+          repository: game-simulations/simulator
+          token: ${{ secrets.PAT }}
+          path: simulator
+      
+      - name: Checkout `data`
+        uses: actions/checkout@v4.1.2
+        with:
+          repository: game-simulations/data
+          token: ${{ secrets.PAT }}
+          path: data
+      
+      - name: Checkout `meshes`
+        uses: actions/checkout@v4.1.2
+        with:
+          repository: game-simulations/meshes
+          token: ${{ secrets.PAT }}
+          path: meshes
+      
+      - name: Checkout `models`
+        uses: actions/checkout@v4.1.2
+        with:
+          repository: game-simulations/models
+          token: ${{ secrets.PAT }}
+          path: models
+
+      - name: Checkout `data-systems`
+        uses: actions/checkout@v4.1.2
+        with:
+          repository: game-simulations/data-systems
+          token: ${{ secrets.PAT }}
+          path: data-systems
       
       - name: Setup dotnet
         uses: actions/setup-dotnet@v4
@@ -64,6 +99,6 @@ jobs:
         run: dotnet nuget add source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json --name github --username ${{ github.repository_owner }} --password ${{ github.token }} --store-password-in-clear-text
       
       - name: Push Source
-        run: dotnet nuget push Meshes.${VERSION}.nupkg --source github --api-key ${NUGET_TOKEN}
+        run: dotnet nuget push Models.Systems.${VERSION}.nupkg --source github --api-key ${NUGET_TOKEN}
         env:
           NUGET_TOKEN: ${{ secrets.NUGET_TOKEN }}
