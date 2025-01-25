@@ -7,15 +7,10 @@
 		<Nullable>enable</Nullable>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<NoStandardLibraries>true</NoStandardLibraries>
-	</PropertyGroup>
-
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-		<IsAotCompatible>True</IsAotCompatible>
-		<TreatWarningsAsErrors>True</TreatWarningsAsErrors>
-		<WarningLevel>8</WarningLevel>
-	</PropertyGroup>
-
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+		<Title>Model Systems</Title>
+		<Authors>popcron</Authors>
+		<Company>game-simulations</Company>
+		<RepositoryUrl>https://github.com/game-simulations/model-systems</RepositoryUrl>
 		<IsAotCompatible>True</IsAotCompatible>
 		<TreatWarningsAsErrors>True</TreatWarningsAsErrors>
 		<WarningLevel>8</WarningLevel>

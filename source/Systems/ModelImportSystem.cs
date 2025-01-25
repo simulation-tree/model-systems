@@ -133,7 +133,7 @@ namespace Models.Systems
                 return false;
             }
 
-            Model model = new(world, modelEntity);
+            Model model = new Entity(world, modelEntity).As<Model>();
             Meshes.Mesh existingMesh = model[index];
             Entity existingMeshEntity = existingMesh;
             Schema schema = world.Schema;
