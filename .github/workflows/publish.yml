@@ -43,12 +43,12 @@ jobs:
           token: ${{ secrets.PAT }}
           path: worlds
 
-      - name: Checkout `simulator`
+      - name: Checkout `simulation`
         uses: actions/checkout@v4.1.2
         with:
-          repository: game-simulations/simulator
+          repository: game-simulations/simulation
           token: ${{ secrets.PAT }}
-          path: simulator
+          path: simulation
       
       - name: Checkout `data`
         uses: actions/checkout@v4.1.2
