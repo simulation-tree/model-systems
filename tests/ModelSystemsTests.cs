@@ -1,4 +1,6 @@
-﻿using Data.Systems;
+﻿using Data;
+using Data.Systems;
+using Meshes;
 using Models.Systems;
 using Simulation.Tests;
 using Types;
@@ -10,9 +12,9 @@ namespace Models.Tests
     {
         static ModelSystemsTests()
         {
-            TypeRegistry.Load<Data.Core.TypeBank>();
-            TypeRegistry.Load<Meshes.TypeBank>();
-            TypeRegistry.Load<Models.TypeBank>();
+            TypeRegistry.Load<DataTypeBank>();
+            TypeRegistry.Load<MeshesTypeBank>();
+            TypeRegistry.Load<ModelsTypeBank>();
         }
 
         protected override void SetUp()
@@ -25,9 +27,9 @@ namespace Models.Tests
         protected override Schema CreateSchema()
         {
             Schema schema = base.CreateSchema();
-            schema.Load<Data.Core.SchemaBank>();
-            schema.Load<Meshes.SchemaBank>();
-            schema.Load<Models.SchemaBank>();
+            schema.Load<DataSchemaBank>();
+            schema.Load<MeshesSchemaBank>();
+            schema.Load<ModelsSchemaBank>();
             return schema;
         }
     }
