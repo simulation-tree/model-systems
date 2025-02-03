@@ -1,6 +1,5 @@
 ﻿using Collections;
-using Data;
-using Data.Components;
+using Data.Messages;
 using Meshes;
 using Meshes.Components;
 using Models.Components;
@@ -40,29 +39,39 @@ namespace Models.Systems
 
         void ISystem.Update(in SystemContainer systemContainer, in World world, in TimeSpan delta)
         {
-            USpan<byte> hint = stackalloc byte[8];
+            USpan<byte> extensionBuffer = stackalloc byte[8];
             ComponentQuery<IsModelRequest> modelRequestQuery = new(world);
-            Schema schema = world.Schema;
+            Simulator simulator = systemContainer.simulator;
             foreach (var r in modelRequestQuery)
             {
-                bool sourceChanged = false;
                 ref IsModelRequest request = ref r.component1;
                 Entity model = new(world, r.entity);
-                if (!modelVersions.ContainsKey(model))
+                if (request.status == IsModelRequest.Status.Submitted)
                 {
-                    sourceChanged = true;
-                }
-                else
-                {
-                    sourceChanged = modelVersions[model] != request.version;
+                    request.status = IsModelRequest.Status.Loading;
+                    Trace.WriteLine($"Started searching data for model `{model}` with address `{request.address}`");
                 }
 
-                if (sourceChanged)
+                if (request.status == IsModelRequest.Status.Loading)
                 {
-                    uint hintLength = request.CopyExtensionBytes(hint);
-                    if (TryLoadModel(model, hint.Slice(0, hintLength), schema))
+                    uint length = request.CopyExtensionBytes(extensionBuffer);
+                    FixedString extension = new(extensionBuffer.Slice(0, length));
+                    IsModelRequest dataRequest = request;
+                    if (TryLoadModel(model, dataRequest, simulator))
                     {
-                        modelVersions.AddOrSet(model, request.version);
+                        Trace.WriteLine($"Model `{model}` has been loaded");
+
+                        //todo: being done this way because reference to the request may have shifted
+                        world.SetComponent(r.entity, dataRequest.BecomeLoaded());
+                    }
+                    else
+                    {
+                        request.duration += delta;
+                        if (request.duration >= request.timeout)
+                        {
+                            Trace.TraceError($"Model `{model}` could not be loaded");
+                            request.status = IsModelRequest.Status.NotFound;
+                        }
                     }
                 }
             }
@@ -73,22 +82,34 @@ namespace Models.Systems
             foreach (var r in meshRequestQuery)
             {
                 ref IsMeshRequest request = ref r.component1;
-                bool sourceChanged;
                 Entity mesh = new(world, r.entity);
-                if (!meshVersions.ContainsKey(mesh))
-                {
-                    sourceChanged = true;
-                }
-                else
-                {
-                    sourceChanged = meshVersions[mesh] != request.version;
-                }
-
-                if (sourceChanged)
+                if (!request.loaded)
                 {
                     if (TryLoadMesh(mesh, request))
                     {
+                        request.loaded = true;
                         meshVersions.AddOrSet(mesh, request.version);
+                    }
+                }
+                else
+                {
+                    bool versionChanged;
+                    if (!meshVersions.ContainsKey(mesh))
+                    {
+                        versionChanged = true;
+                    }
+                    else
+                    {
+                        versionChanged = meshVersions[mesh] != request.version;
+                    }
+
+                    if (versionChanged)
+                    {
+                        if (TryLoadMesh(mesh, request))
+                        {
+                            request.loaded = true;
+                            meshVersions.AddOrSet(mesh, request.version);
+                        }
                     }
                 }
             }
@@ -122,7 +143,7 @@ namespace Models.Systems
 
         private readonly bool TryLoadMesh(Entity mesh, IsMeshRequest request)
         {
-            World world = mesh.GetWorld();
+            World world = mesh.world;
             uint index = request.meshIndex;
             rint modelReference = request.modelReference;
             uint modelEntity = mesh.GetReference(modelReference);
@@ -134,17 +155,22 @@ namespace Models.Systems
             }
 
             Model model = new Entity(world, modelEntity).As<Model>();
-            Meshes.Mesh existingMesh = model[index];
-            Entity existingMeshEntity = existingMesh;
+            Meshes.Mesh sourceMesh = model[index];
             Schema schema = world.Schema;
             Operation operation = new();
             Operation.SelectedEntity selectedMesh = operation.SelectEntity(mesh);
-            ref IsMesh component = ref mesh.TryGetComponent<IsMesh>(out bool contains);
-            if (contains)
+            if (mesh.TryGetComponent(out IsMesh component))
             {
-                component.version++;
-                selectedMesh.SetComponent(new IsMesh(component.version + 1), schema);
-                selectedMesh.SetComponent(new Name(existingMesh.GetName()), schema);
+                selectedMesh.SetComponent(component.IncrementVersion(), schema);
+                ModelName modelName = sourceMesh.GetComponent<ModelName>();
+                if (mesh.ContainsComponent<ModelName>())
+                {
+                    selectedMesh.SetComponent(modelName, schema);
+                }
+                else
+                {
+                    selectedMesh.AddComponent(modelName, schema);
+                }
             }
             else
             {
@@ -152,79 +178,79 @@ namespace Models.Systems
                 selectedMesh.AddComponent(new IsMesh(), schema);
                 selectedMesh.CreateArray<MeshVertexIndex>(0, schema);
 
-                if (existingMesh.HasPositions())
+                if (sourceMesh.ContainsPositions)
                 {
                     selectedMesh.CreateArray<MeshVertexPosition>(0, schema);
                 }
 
-                if (existingMesh.HasUVs())
+                if (sourceMesh.ContainsUVs)
                 {
                     selectedMesh.CreateArray<MeshVertexUV>(0, schema);
                 }
 
-                if (existingMesh.HasNormals())
+                if (sourceMesh.ContainsNormals)
                 {
                     selectedMesh.CreateArray<MeshVertexNormal>(0, schema);
                 }
 
-                if (existingMesh.HasTangents())
+                if (sourceMesh.ContainsTangents)
                 {
                     selectedMesh.CreateArray<MeshVertexTangent>(0, schema);
                 }
 
-                if (existingMesh.HasBiTangents())
+                if (sourceMesh.ContainsBiTangents)
                 {
                     selectedMesh.CreateArray<MeshVertexBiTangent>(0, schema);
                 }
 
-                if (existingMesh.HasColors())
+                if (sourceMesh.ContainsColors)
                 {
                     selectedMesh.CreateArray<MeshVertexColor>(0, schema);
                 }
             }
 
             //copy each channel
-            if (existingMesh.HasPositions())
+            if (sourceMesh.ContainsPositions)
             {
-                USpan<MeshVertexPosition> positions = existingMeshEntity.GetArray<MeshVertexPosition>();
-                USpan<MeshVertexIndex> indices = existingMeshEntity.GetArray<MeshVertexIndex>();
+                USpan<MeshVertexPosition> positions = sourceMesh.GetArray<MeshVertexPosition>();
+                USpan<MeshVertexIndex> indices = sourceMesh.GetArray<MeshVertexIndex>();
                 selectedMesh.ResizeArray<MeshVertexIndex>(indices.Length, schema);
                 selectedMesh.SetArrayElements(0, indices, schema);
                 selectedMesh.ResizeArray<MeshVertexPosition>(positions.Length, schema);
                 selectedMesh.SetArrayElements(0, positions, schema);
             }
 
-            if (existingMesh.HasUVs())
+            if (sourceMesh.ContainsUVs)
             {
-                USpan<MeshVertexUV> uvs = existingMeshEntity.GetArray<MeshVertexUV>();
+                USpan<MeshVertexUV> uvs = sourceMesh.GetArray<MeshVertexUV>();
                 selectedMesh.ResizeArray<MeshVertexUV>(uvs.Length, schema);
                 selectedMesh.SetArrayElements(0, uvs, schema);
             }
 
-            if (existingMesh.HasNormals())
+            if (sourceMesh.ContainsNormals)
             {
-                USpan<MeshVertexNormal> normals = existingMeshEntity.GetArray<MeshVertexNormal>();
+                USpan<MeshVertexNormal> normals = sourceMesh.GetArray<MeshVertexNormal>();
                 selectedMesh.ResizeArray<MeshVertexNormal>(normals.Length, schema);
                 selectedMesh.SetArrayElements(0, normals, schema);
             }
 
-            if (existingMesh.HasTangents())
+            if (sourceMesh.ContainsTangents)
             {
-                USpan<MeshVertexTangent> tangents = existingMeshEntity.GetArray<MeshVertexTangent>();
+                USpan<MeshVertexTangent> tangents = sourceMesh.GetArray<MeshVertexTangent>();
                 selectedMesh.ResizeArray<MeshVertexTangent>(tangents.Length, schema);
                 selectedMesh.SetArrayElements(0, tangents, schema);
             }
 
-            if (existingMesh.HasBiTangents())
+            if (sourceMesh.ContainsBiTangents)
             {
-                USpan<MeshVertexBiTangent> bitangents = existingMeshEntity.GetArray<MeshVertexBiTangent>();
+                USpan<MeshVertexBiTangent> bitangents = sourceMesh.GetArray<MeshVertexBiTangent>();
                 selectedMesh.ResizeArray<MeshVertexBiTangent>(bitangents.Length, schema);
                 selectedMesh.SetArrayElements(0, bitangents, schema);
             }
 
-            if (existingMesh.HasColors())
+            if (sourceMesh.ContainsColors)
             {
-                USpan<MeshVertexColor> colors = existingMeshEntity.GetArray<MeshVertexColor>();
+                USpan<MeshVertexColor> colors = sourceMesh.GetArray<MeshVertexColor>();
                 selectedMesh.ResizeArray<MeshVertexColor>(colors.Length, schema);
                 selectedMesh.SetArrayElements(0, colors, schema);
             }
@@ -233,50 +259,49 @@ namespace Models.Systems
             return true;
         }
 
-        private bool TryLoadModel(Entity model, USpan<byte> hint, Schema schema)
+        private bool TryLoadModel(Entity model, IsModelRequest request, Simulator simulator)
         {
-            //wait for byte data to be available
-            if (!model.ContainsArray<BinaryData>())
+            HandleDataRequest message = new(model, request.address);
+            if (simulator.TryHandleMessage(ref message))
             {
-                Trace.WriteLine($"Model data not available on entity `{model}`, waiting");
-                return false;
+                if (message.loaded)
+                {
+                    Schema schema = model.world.Schema;
+                    Operation operation = new();
+                    USpan<byte> byteData = message.Bytes;
+                    ImportModel(model, operation, byteData, request.Extension);
+
+                    operation.ClearSelection();
+                    Operation.SelectedEntity selectedEntity = operation.SelectEntity(model);
+                    ref IsModel component = ref model.TryGetComponent<IsModel>(out bool contains);
+                    if (contains)
+                    {
+                        selectedEntity.SetComponent(new IsModel(component.version + 1), schema);
+                    }
+                    else
+                    {
+                        selectedEntity.AddComponent(new IsModel(), schema);
+                    }
+
+                    operations.Push(operation);
+                    return true;
+                }
             }
 
-            Operation operation = new();
-            USpan<BinaryData> byteData = model.GetArray<BinaryData>();
-            ImportModel(model, operation, byteData, hint);
-
-            operation.ClearSelection();
-            Operation.SelectedEntity selectedEntity = operation.SelectEntity(model);
-            ref IsModel component = ref model.TryGetComponent<IsModel>(out bool contains);
-            if (contains)
-            {
-                selectedEntity.SetComponent(new IsModel(component.version + 1), schema);
-            }
-            else
-            {
-                selectedEntity.AddComponent(new IsModel(), schema);
-            }
-
-            operations.Push(operation);
-            return true;
+            return false;
         }
 
-        private readonly unsafe uint ImportModel(Entity model, Operation operation, USpan<BinaryData> bytes, USpan<byte> hint)
+        private readonly unsafe uint ImportModel(Entity model, Operation operation, USpan<byte> bytes, FixedString extension)
         {
-            World world = model.GetWorld();
+            World world = model.world;
             Schema schema = world.Schema;
-            USpan<char> hintString = stackalloc char[(int)hint.Length];
-            for (uint i = 0; i < hint.Length; i++)
-            {
-                hintString[i] = (char)hint[i];
-            }
-
-            using Scene scene = new(bytes.As<byte>(), hintString, PostProcessSteps.Triangulate);
+            USpan<char> extensionSpan = stackalloc char[extension.Length];
+            extension.CopyTo(extensionSpan);
+            using Scene scene = new(bytes.As<byte>(), extensionSpan, PostProcessSteps.Triangulate);
             bool containsMeshes = model.ContainsArray<ModelMesh>();
             uint existingMeshCount = containsMeshes ? model.GetArrayLength<ModelMesh>() : 0;
             operation.SelectEntity(model);
-            uint referenceCount = model.GetReferenceCount();
+            uint referenceCount = model.References;
             using List<ModelMesh> meshes = new();
             ProcessNode(scene.RootNode, scene, operation);
             operation.SelectEntity(model);
@@ -331,7 +356,7 @@ namespace Models.Systems
                     rint existingMeshReference = model.GetArrayElement<ModelMesh>(meshIndex).value;
                     existingMesh = new(world, model.GetReference(existingMeshReference));
                     operation.SelectEntity(existingMesh);
-                    operation.SetComponent(new Name(name), schema);
+                    operation.SetComponent(new ModelName(name), schema);
                     modelMesh = new(existingMeshReference);
                 }
                 else
@@ -340,7 +365,7 @@ namespace Models.Systems
                     operation.CreateEntity();
                     operation.SetParent(model);
                     operation.CreateArray<MeshVertexIndex>(0, schema);
-                    operation.AddComponent(new Name(name), schema);
+                    operation.AddComponent(new ModelName(name), schema);
 
                     //reference the created mesh
                     operation.ClearSelection();
@@ -483,11 +508,9 @@ namespace Models.Systems
                 //increment mesh version
                 if (meshReused)
                 {
-                    ref IsMesh component = ref existingMesh.TryGetComponent<IsMesh>(out bool contains);
-                    if (contains)
+                    if (existingMesh.TryGetComponent(out IsMesh component))
                     {
-                        component.version++;
-                        operation.SetComponent(new IsMesh(component.version + 1), schema);
+                        operation.SetComponent(component.IncrementVersion(), schema);
                     }
                     else
                     {
