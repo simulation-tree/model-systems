@@ -40,37 +40,45 @@ namespace Models.Systems
         void ISystem.Update(in SystemContainer systemContainer, in World world, in TimeSpan delta)
         {
             USpan<byte> extensionBuffer = stackalloc byte[8];
-            ComponentQuery<IsModelRequest> modelRequestQuery = new(world);
             Simulator simulator = systemContainer.simulator;
-            foreach (var r in modelRequestQuery)
+            ComponentType componentType = world.Schema.GetComponent<IsModelRequest>();
+            foreach (Chunk chunk in world.Chunks)
             {
-                ref IsModelRequest request = ref r.component1;
-                Entity model = new(world, r.entity);
-                if (request.status == IsModelRequest.Status.Submitted)
+                if (chunk.Definition.Contains(componentType))
                 {
-                    request.status = IsModelRequest.Status.Loading;
-                    Trace.WriteLine($"Started searching data for model `{model}` with address `{request.address}`");
-                }
-
-                if (request.status == IsModelRequest.Status.Loading)
-                {
-                    uint length = request.CopyExtensionBytes(extensionBuffer);
-                    FixedString extension = new(extensionBuffer.Slice(0, length));
-                    IsModelRequest dataRequest = request;
-                    if (TryLoadModel(model, dataRequest, simulator))
+                    USpan<uint> entities = chunk.Entities;
+                    USpan<IsModelRequest> components = chunk.GetComponents<IsModelRequest>(componentType);
+                    for (uint i = 0; i < entities.Length; i++)
                     {
-                        Trace.WriteLine($"Model `{model}` has been loaded");
-
-                        //todo: being done this way because reference to the request may have shifted
-                        world.SetComponent(r.entity, dataRequest.BecomeLoaded());
-                    }
-                    else
-                    {
-                        request.duration += delta;
-                        if (request.duration >= request.timeout)
+                        ref IsModelRequest request = ref components[i];
+                        Entity model = new(world, entities[i]);
+                        if (request.status == IsModelRequest.Status.Submitted)
                         {
-                            Trace.TraceError($"Model `{model}` could not be loaded");
-                            request.status = IsModelRequest.Status.NotFound;
+                            request.status = IsModelRequest.Status.Loading;
+                            Trace.WriteLine($"Started searching data for model `{model}` with address `{request.address}`");
+                        }
+
+                        if (request.status == IsModelRequest.Status.Loading)
+                        {
+                            uint length = request.CopyExtensionBytes(extensionBuffer);
+                            FixedString extension = new(extensionBuffer.Slice(0, length));
+                            IsModelRequest dataRequest = request;
+                            if (TryLoadModel(model, dataRequest, simulator))
+                            {
+                                Trace.WriteLine($"Model `{model}` has been loaded");
+
+                                //todo: being done this way because reference to the request may have shifted
+                                model.SetComponent(dataRequest.BecomeLoaded());
+                            }
+                            else
+                            {
+                                request.duration += delta;
+                                if (request.duration >= request.timeout)
+                                {
+                                    Trace.TraceError($"Model `{model}` could not be loaded");
+                                    request.status = IsModelRequest.Status.NotFound;
+                                }
+                            }
                         }
                     }
                 }
@@ -78,37 +86,45 @@ namespace Models.Systems
 
             PerformOperations(world);
 
-            ComponentQuery<IsMeshRequest> meshRequestQuery = new(world);
-            foreach (var r in meshRequestQuery)
+            ComponentType meshComponent = world.Schema.GetComponent<IsMeshRequest>();
+            foreach (Chunk chunk in world.Chunks)
             {
-                ref IsMeshRequest request = ref r.component1;
-                Entity mesh = new(world, r.entity);
-                if (!request.loaded)
+                if (chunk.Definition.Contains(meshComponent))
                 {
-                    if (TryLoadMesh(mesh, request))
+                    USpan<uint> entities = chunk.Entities;
+                    USpan<IsMeshRequest> components = chunk.GetComponents<IsMeshRequest>(meshComponent);
+                    for (uint i = 0; i < entities.Length; i++)
                     {
-                        request.loaded = true;
-                        meshVersions.AddOrSet(mesh, request.version);
-                    }
-                }
-                else
-                {
-                    bool versionChanged;
-                    if (!meshVersions.ContainsKey(mesh))
-                    {
-                        versionChanged = true;
-                    }
-                    else
-                    {
-                        versionChanged = meshVersions[mesh] != request.version;
-                    }
-
-                    if (versionChanged)
-                    {
-                        if (TryLoadMesh(mesh, request))
+                        ref IsMeshRequest request = ref components[i];
+                        Entity mesh = new(world, entities[i]);
+                        if (!request.loaded)
                         {
-                            request.loaded = true;
-                            meshVersions.AddOrSet(mesh, request.version);
+                            if (TryLoadMesh(mesh, request))
+                            {
+                                request.loaded = true;
+                                meshVersions.AddOrSet(mesh, request.version);
+                            }
+                        }
+                        else
+                        {
+                            bool versionChanged;
+                            if (!meshVersions.ContainsKey(mesh))
+                            {
+                                versionChanged = true;
+                            }
+                            else
+                            {
+                                versionChanged = meshVersions[mesh] != request.version;
+                            }
+
+                            if (versionChanged)
+                            {
+                                if (TryLoadMesh(mesh, request))
+                                {
+                                    request.loaded = true;
+                                    meshVersions.AddOrSet(mesh, request.version);
+                                }
+                            }
                         }
                     }
                 }
