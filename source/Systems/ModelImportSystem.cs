@@ -152,17 +152,17 @@ namespace Models.Systems
         {
             while (operations.TryPop(out Operation operation))
             {
-                world.Perform(operation);
+                operation.Perform(world);
                 operation.Dispose();
             }
         }
 
-        private readonly bool TryLoadMesh(Entity mesh, IsMeshRequest request)
+        private readonly bool TryLoadMesh(Entity loadingMesh, IsMeshRequest request)
         {
-            World world = mesh.world;
+            World world = loadingMesh.world;
             uint index = request.meshIndex;
             rint modelReference = request.modelReference;
-            uint modelEntity = mesh.GetReference(modelReference);
+            uint modelEntity = loadingMesh.GetReference(modelReference);
 
             //wait for model data to load
             if (!world.ContainsComponent<IsModel>(modelEntity))
@@ -174,101 +174,49 @@ namespace Models.Systems
             Meshes.Mesh sourceMesh = model[index];
             Schema schema = world.Schema;
             Operation operation = new();
-            Operation.SelectedEntity selectedMesh = operation.SelectEntity(mesh);
-            if (mesh.TryGetComponent(out IsMesh component))
-            {
-                selectedMesh.SetComponent(component.IncrementVersion(), schema);
-                ModelName modelName = sourceMesh.GetComponent<ModelName>();
-                if (mesh.ContainsComponent<ModelName>())
-                {
-                    selectedMesh.SetComponent(modelName, schema);
-                }
-                else
-                {
-                    selectedMesh.AddComponent(modelName, schema);
-                }
-            }
-            else
-            {
-                //become a mesh now!
-                selectedMesh.AddComponent(new IsMesh(), schema);
-                selectedMesh.CreateArray<MeshVertexIndex>(0, schema);
-
-                if (sourceMesh.ContainsPositions)
-                {
-                    selectedMesh.CreateArray<MeshVertexPosition>(0, schema);
-                }
-
-                if (sourceMesh.ContainsUVs)
-                {
-                    selectedMesh.CreateArray<MeshVertexUV>(0, schema);
-                }
-
-                if (sourceMesh.ContainsNormals)
-                {
-                    selectedMesh.CreateArray<MeshVertexNormal>(0, schema);
-                }
-
-                if (sourceMesh.ContainsTangents)
-                {
-                    selectedMesh.CreateArray<MeshVertexTangent>(0, schema);
-                }
-
-                if (sourceMesh.ContainsBiTangents)
-                {
-                    selectedMesh.CreateArray<MeshVertexBiTangent>(0, schema);
-                }
-
-                if (sourceMesh.ContainsColors)
-                {
-                    selectedMesh.CreateArray<MeshVertexColor>(0, schema);
-                }
-            }
+            operation.SelectEntity(loadingMesh);
+            loadingMesh.TryGetComponent(out IsMesh component);
+            ModelName modelName = sourceMesh.GetComponent<ModelName>();
+            operation.AddOrSetComponent(modelName);
+            operation.AddOrSetComponent(new IsMesh(component.version + 1));
 
             //copy each channel
             if (sourceMesh.ContainsPositions)
             {
                 USpan<MeshVertexPosition> positions = sourceMesh.GetArray<MeshVertexPosition>();
                 USpan<MeshVertexIndex> indices = sourceMesh.GetArray<MeshVertexIndex>();
-                selectedMesh.ResizeArray<MeshVertexIndex>(indices.Length, schema);
-                selectedMesh.SetArrayElements(0, indices, schema);
-                selectedMesh.ResizeArray<MeshVertexPosition>(positions.Length, schema);
-                selectedMesh.SetArrayElements(0, positions, schema);
+                operation.CreateOrSetArray(indices);
+                operation.CreateOrSetArray(positions);
             }
 
             if (sourceMesh.ContainsUVs)
             {
                 USpan<MeshVertexUV> uvs = sourceMesh.GetArray<MeshVertexUV>();
-                selectedMesh.ResizeArray<MeshVertexUV>(uvs.Length, schema);
-                selectedMesh.SetArrayElements(0, uvs, schema);
+                operation.CreateOrSetArray(uvs);
             }
 
             if (sourceMesh.ContainsNormals)
             {
                 USpan<MeshVertexNormal> normals = sourceMesh.GetArray<MeshVertexNormal>();
-                selectedMesh.ResizeArray<MeshVertexNormal>(normals.Length, schema);
-                selectedMesh.SetArrayElements(0, normals, schema);
+                operation.CreateOrSetArray(normals);
             }
 
             if (sourceMesh.ContainsTangents)
             {
                 USpan<MeshVertexTangent> tangents = sourceMesh.GetArray<MeshVertexTangent>();
-                selectedMesh.ResizeArray<MeshVertexTangent>(tangents.Length, schema);
-                selectedMesh.SetArrayElements(0, tangents, schema);
+                operation.CreateOrSetArray(tangents);
             }
 
             if (sourceMesh.ContainsBiTangents)
             {
-                USpan<MeshVertexBiTangent> bitangents = sourceMesh.GetArray<MeshVertexBiTangent>();
-                selectedMesh.ResizeArray<MeshVertexBiTangent>(bitangents.Length, schema);
-                selectedMesh.SetArrayElements(0, bitangents, schema);
+                USpan<MeshVertexBiTangent> biTangents = sourceMesh.GetArray<MeshVertexBiTangent>();
+                operation.CreateOrSetArray(biTangents);
             }
 
             if (sourceMesh.ContainsColors)
             {
                 USpan<MeshVertexColor> colors = sourceMesh.GetArray<MeshVertexColor>();
-                selectedMesh.ResizeArray<MeshVertexColor>(colors.Length, schema);
-                selectedMesh.SetArrayElements(0, colors, schema);
+                operation.CreateOrSetArray(colors);
             }
 
             operations.Push(operation);
@@ -282,22 +230,14 @@ namespace Models.Systems
             {
                 if (message.loaded)
                 {
-                    Schema schema = model.world.Schema;
                     Operation operation = new();
                     USpan<byte> byteData = message.Bytes;
                     ImportModel(model, operation, byteData, request.Extension);
 
                     operation.ClearSelection();
-                    Operation.SelectedEntity selectedEntity = operation.SelectEntity(model);
-                    ref IsModel component = ref model.TryGetComponent<IsModel>(out bool contains);
-                    if (contains)
-                    {
-                        selectedEntity.SetComponent(new IsModel(component.version + 1), schema);
-                    }
-                    else
-                    {
-                        selectedEntity.AddComponent(new IsModel(), schema);
-                    }
+                    operation.SelectEntity(model);
+                    model.TryGetComponent(out IsModel component);
+                    operation.AddOrSetComponent(new IsModel(component.version + 1));
 
                     operations.Push(operation);
                     return true;
@@ -310,7 +250,6 @@ namespace Models.Systems
         private readonly unsafe uint ImportModel(Entity model, Operation operation, USpan<byte> bytes, FixedString extension)
         {
             World world = model.world;
-            Schema schema = world.Schema;
             USpan<char> extensionSpan = stackalloc char[extension.Length];
             extension.CopyTo(extensionSpan);
             using Scene scene = new(bytes.As<byte>(), extensionSpan, PostProcessSteps.Triangulate);
@@ -321,16 +260,7 @@ namespace Models.Systems
             using List<ModelMesh> meshes = new();
             ProcessNode(scene.RootNode, scene, operation);
             operation.SelectEntity(model);
-            if (containsMeshes)
-            {
-                operation.ResizeArray<ModelMesh>(meshes.Count, schema);
-                operation.SetArrayElements(0, meshes.AsSpan(), schema);
-            }
-            else
-            {
-                operation.CreateArray(meshes.AsSpan(), schema);
-            }
-
+            operation.CreateOrSetArray(meshes.AsSpan());
             return meshes.Count;
 
             void ProcessNode(Node node, Scene scene, Operation operation)
@@ -352,12 +282,24 @@ namespace Models.Systems
             {
                 uint vertexCount = (uint)mesh.VertexCount;
                 uint faceCount = (uint)mesh.FaceCount;
-                Vector3* positions = GetPointer<Vector3>(mesh.Vertices);
-                Vector3* uvs = GetPointer<Vector3>(mesh.GetTextureCoordinates(0));
-                Vector3* normals = GetPointer<Vector3>(mesh.Normals);
-                Vector3* tangents = GetPointer<Vector3>(mesh.Tangents);
-                Vector3* biTangents = GetPointer<Vector3>(mesh.BiTangents);
-                Vector4* colors = GetPointer<Vector4>(mesh.GetColors(0));
+                USpan<Vector3> positions = mesh.HasVertices ? mesh.Vertices : default;
+                USpan<Vector3> uvs = mesh.GetTextureCoordinates(0);
+                USpan<Vector3> normals = mesh.HasNormals ? mesh.Normals : default;
+                USpan<Vector3> tangents = mesh.HasTangents ? mesh.Tangents : default;
+                USpan<Vector3> biTangents = mesh.HasBiTangents ? mesh.BiTangents : default;
+                USpan<Vector4> colors = mesh.GetColors(0);
+
+                if (uvs.Address == default)
+                {
+                    uvs = default;
+                }
+
+                if (colors.Address == default)
+                {
+                    colors = default;
+                }
+
+                operation.ClearSelection();
 
                 //todo: accuracy: should reuse based on mesh name rather than index within the list, because the amount of meshes
                 //in the source asset could change, and could possibly shift around in order
@@ -372,7 +314,7 @@ namespace Models.Systems
                     rint existingMeshReference = model.GetArrayElement<ModelMesh>(meshIndex).value;
                     existingMesh = new(world, model.GetReference(existingMeshReference));
                     operation.SelectEntity(existingMesh);
-                    operation.SetComponent(new ModelName(name), schema);
+                    operation.SetComponent(new ModelName(name));
                     modelMesh = new(existingMeshReference);
                 }
                 else
@@ -380,8 +322,8 @@ namespace Models.Systems
                     //create new mesh
                     operation.CreateEntity();
                     operation.SetParent(model);
-                    operation.CreateArray<MeshVertexIndex>(0, schema);
-                    operation.AddComponent(new ModelName(name), schema);
+                    operation.CreateArray<MeshVertexIndex>();
+                    operation.AddComponent(new ModelName(name));
 
                     //reference the created mesh
                     operation.ClearSelection();
@@ -393,51 +335,14 @@ namespace Models.Systems
                     //select the created mesh again
                     operation.ClearSelection();
                     operation.SelectPreviouslyCreatedEntity(0);
-
-                    if (positions is not null)
-                    {
-                        operation.CreateArray<MeshVertexPosition>(0, schema);
-                    }
-
-                    if (uvs is not null)
-                    {
-                        operation.CreateArray<MeshVertexUV>(0, schema);
-                    }
-
-                    if (normals is not null)
-                    {
-                        operation.CreateArray<MeshVertexNormal>(0, schema);
-                    }
-
-                    if (tangents is not null)
-                    {
-                        operation.CreateArray<MeshVertexTangent>(0, schema);
-                    }
-
-                    if (biTangents is not null)
-                    {
-                        operation.CreateArray<MeshVertexBiTangent>(0, schema);
-                    }
-
-                    if (colors is not null)
-                    {
-                        operation.CreateArray<MeshVertexColor>(0, schema);
-                    }
                 }
 
                 meshes.Add(modelMesh);
 
                 //fill in data
-                if (positions is not null)
+                if (!positions.IsEmpty)
                 {
-                    using Array<MeshVertexPosition> tempData = new(vertexCount);
-                    for (uint i = 0; i < vertexCount; i++)
-                    {
-                        tempData[i] = positions[i];
-                    }
-
-                    operation.ResizeArray<MeshVertexPosition>(vertexCount, schema);
-                    operation.SetArrayElements(0, tempData.AsSpan(), schema);
+                    operation.CreateOrSetArray(positions.As<MeshVertexPosition>());
 
                     using List<MeshVertexIndex> indices = new();
                     for (uint f = 0; f < faceCount; f++)
@@ -450,69 +355,39 @@ namespace Models.Systems
                         }
                     }
 
-                    operation.ResizeArray<MeshVertexIndex>(indices.Count, schema);
-                    operation.SetArrayElements(0, indices.AsSpan(), schema);
+                    operation.CreateOrSetArray(indices.AsSpan());
                 }
 
-                if (uvs is not null)
+                if (!uvs.IsEmpty)
                 {
-                    using Array<MeshVertexUV> tempData = new(vertexCount);
+                    using Array<MeshVertexUV> uvs2d = new(vertexCount);
                     for (uint i = 0; i < vertexCount; i++)
                     {
                         Vector3 raw = uvs[i];
-                        tempData[i] = new MeshVertexUV(new(raw.X, raw.Y));
+                        uvs2d[i] = new MeshVertexUV(new(raw.X, raw.Y));
                     }
 
-                    operation.ResizeArray<MeshVertexUV>(vertexCount, schema);
-                    operation.SetArrayElements(0, tempData.AsSpan(), schema);
+                    operation.CreateOrSetArray(uvs2d.AsSpan());
                 }
 
-                if (normals is not null)
+                if (!normals.IsEmpty)
                 {
-                    using Array<MeshVertexNormal> tempData = new(vertexCount);
-                    for (uint i = 0; i < vertexCount; i++)
-                    {
-                        tempData[i] = new(normals[i]);
-                    }
-
-                    operation.ResizeArray<MeshVertexNormal>(vertexCount, schema);
-                    operation.SetArrayElements(0, tempData.AsSpan(), schema);
+                    operation.CreateOrSetArray(normals.As<MeshVertexNormal>());
                 }
 
-                if (tangents is not null)
+                if (!tangents.IsEmpty)
                 {
-                    using Array<MeshVertexTangent> tempData = new(vertexCount);
-                    for (uint i = 0; i < vertexCount; i++)
-                    {
-                        tempData[i] = new(tangents[i]);
-                    }
-
-                    operation.ResizeArray<MeshVertexTangent>(vertexCount, schema);
-                    operation.SetArrayElements(0, tempData.AsSpan(), schema);
+                    operation.CreateOrSetArray(tangents.As<MeshVertexTangent>());
                 }
 
-                if (biTangents is not null)
+                if (!biTangents.IsEmpty)
                 {
-                    using Array<MeshVertexBiTangent> tempData = new(vertexCount);
-                    for (uint i = 0; i < vertexCount; i++)
-                    {
-                        tempData[i] = new(biTangents[i]);
-                    }
-
-                    operation.ResizeArray<MeshVertexBiTangent>(vertexCount, schema);
-                    operation.SetArrayElements(0, tempData.AsSpan(), schema);
+                    operation.CreateOrSetArray(biTangents.As<MeshVertexBiTangent>());
                 }
 
-                if (colors is not null)
+                if (!colors.IsEmpty)
                 {
-                    using Array<MeshVertexColor> tempData = new(vertexCount);
-                    for (uint i = 0; i < vertexCount; i++)
-                    {
-                        tempData[i] = new(colors[i]);
-                    }
-
-                    operation.ResizeArray<MeshVertexColor>(vertexCount, schema);
-                    operation.SetArrayElements(0, tempData.AsSpan(), schema);
+                    operation.CreateOrSetArray(colors.As<MeshVertexColor>());
                 }
 
                 //Material? material = scene.MaterialCount > 0 ? scene.Materials[0] : null;
@@ -524,25 +399,14 @@ namespace Models.Systems
                 //increment mesh version
                 if (meshReused)
                 {
-                    if (existingMesh.TryGetComponent(out IsMesh component))
-                    {
-                        operation.SetComponent(component.IncrementVersion(), schema);
-                    }
-                    else
-                    {
-                        operation.AddComponent(new IsMesh(), schema);
-                    }
+                    existingMesh.TryGetComponent(out IsMesh component);
+                    operation.AddOrSetComponent(new IsMesh(component.version + 1));
                 }
                 else
                 {
-                    operation.AddComponent(new IsMesh(), schema);
+                    operation.AddComponent(new IsMesh());
                 }
             }
-        }
-
-        private unsafe static T* GetPointer<T>(USpan<T> span) where T : unmanaged
-        {
-            return span.Pointer;
         }
     }
 }
