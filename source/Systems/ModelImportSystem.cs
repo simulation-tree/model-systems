@@ -225,14 +225,15 @@ namespace Models.Systems
 
         private bool TryLoadModel(Entity model, IsModelRequest request, Simulator simulator)
         {
-            HandleDataRequest message = new(model, request.address);
+            LoadData message = new(model, request.address);
             if (simulator.TryHandleMessage(ref message))
             {
-                if (message.loaded)
+                if (message.IsLoaded)
                 {
                     Operation operation = new();
                     USpan<byte> byteData = message.Bytes;
                     ImportModel(model, operation, byteData, request.Extension);
+                    message.Dispose();
 
                     operation.ClearSelection();
                     operation.SelectEntity(model);
