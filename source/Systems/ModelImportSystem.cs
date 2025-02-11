@@ -8,11 +8,13 @@ using Simulation;
 using System;
 using System.Diagnostics;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using Unmanaged;
 using Worlds;
 
 namespace Models.Systems
 {
+    [SkipLocalsInit]
     public readonly partial struct ModelImportSystem : ISystem
     {
         private readonly Dictionary<Entity, uint> modelVersions;
