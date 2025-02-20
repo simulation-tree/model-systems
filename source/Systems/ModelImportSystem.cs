@@ -228,7 +228,7 @@ namespace Models.Systems
         private bool TryLoadModel(Entity model, IsModelRequest request, Simulator simulator)
         {
             LoadData message = new(model.world, request.address);
-            if (simulator.TryHandleMessage(ref message))
+            if (simulator.TryHandleMessage(ref message) != default)
             {
                 if (message.IsLoaded)
                 {
