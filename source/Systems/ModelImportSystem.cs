@@ -174,13 +174,12 @@ namespace Models.Systems
 
             Model model = new Entity(world, modelEntity).As<Model>();
             Meshes.Mesh sourceMesh = model[index];
-            Schema schema = world.Schema;
             Operation operation = new();
             operation.SelectEntity(loadingMesh);
             loadingMesh.TryGetComponent(out IsMesh component);
             ModelName modelName = sourceMesh.GetComponent<ModelName>();
             operation.AddOrSetComponent(modelName);
-            operation.AddOrSetComponent(new IsMesh(component.version + 1));
+            operation.AddOrSetComponent(component.IncrementVersion());
 
             //copy each channel
             if (sourceMesh.ContainsPositions)
@@ -240,7 +239,7 @@ namespace Models.Systems
                     operation.ClearSelection();
                     operation.SelectEntity(model);
                     model.TryGetComponent(out IsModel component);
-                    operation.AddOrSetComponent(new IsModel(component.version + 1));
+                    operation.AddOrSetComponent(component.IncrementVersion());
 
                     operations.Push(operation);
                     return true;
@@ -400,14 +399,14 @@ namespace Models.Systems
                 //}
 
                 //increment mesh version
-                if (meshReused)
+                if (existingMesh != default)
                 {
                     existingMesh.TryGetComponent(out IsMesh component);
-                    operation.AddOrSetComponent(new IsMesh(component.version + 1));
+                    operation.AddOrSetComponent(component.IncrementVersion());
                 }
                 else
                 {
-                    operation.AddComponent(new IsMesh());
+                    operation.AddComponent(new IsMesh(1));
                 }
             }
         }
