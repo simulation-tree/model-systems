@@ -43,10 +43,10 @@ namespace Models.Systems
         {
             USpan<byte> extensionBuffer = stackalloc byte[8];
             Simulator simulator = systemContainer.simulator;
-            ComponentType componentType = world.Schema.GetComponent<IsModelRequest>();
+            ComponentType componentType = world.Schema.GetComponentType<IsModelRequest>();
             foreach (Chunk chunk in world.Chunks)
             {
-                if (chunk.Definition.Contains(componentType))
+                if (chunk.Definition.ContainsComponent(componentType))
                 {
                     USpan<uint> entities = chunk.Entities;
                     USpan<IsModelRequest> components = chunk.GetComponents<IsModelRequest>(componentType);
@@ -88,10 +88,10 @@ namespace Models.Systems
 
             PerformOperations(world);
 
-            ComponentType meshComponent = world.Schema.GetComponent<IsMeshRequest>();
+            ComponentType meshComponent = world.Schema.GetComponentType<IsMeshRequest>();
             foreach (Chunk chunk in world.Chunks)
             {
-                if (chunk.Definition.Contains(meshComponent))
+                if (chunk.Definition.ContainsComponent(meshComponent))
                 {
                     USpan<uint> entities = chunk.Entities;
                     USpan<IsMeshRequest> components = chunk.GetComponents<IsMeshRequest>(meshComponent);
