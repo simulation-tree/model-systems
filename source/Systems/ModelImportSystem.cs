@@ -63,7 +63,7 @@ namespace Models.Systems
                         if (request.status == IsModelRequest.Status.Loading)
                         {
                             uint length = request.CopyExtensionBytes(extensionBuffer);
-                            FixedString extension = new(extensionBuffer.Slice(0, length));
+                            FixedString extension = new(extensionBuffer.GetSpan(length));
                             IsModelRequest dataRequest = request;
                             if (TryLoadModel(model, dataRequest, simulator))
                             {

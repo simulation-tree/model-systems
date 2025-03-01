@@ -11,7 +11,7 @@ namespace Models.Tests
             IsModelRequest request = new("fbx", default(FixedString), default);
             USpan<char> buffer = stackalloc char[8];
             uint bufferLength = request.CopyExtensionCharacters(buffer);
-            Assert.That(buffer.Slice(0, bufferLength).ToString(), Is.EqualTo("fbx"));
+            Assert.That(buffer.GetSpan(bufferLength).ToString(), Is.EqualTo("fbx"));
         }
     }
 }
