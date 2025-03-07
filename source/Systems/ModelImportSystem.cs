@@ -63,7 +63,7 @@ namespace Models.Systems
                         if (request.status == IsModelRequest.Status.Loading)
                         {
                             uint length = request.CopyExtensionBytes(extensionBuffer);
-                            FixedString extension = new(extensionBuffer.GetSpan(length));
+                            ASCIIText256 extension = new(extensionBuffer.GetSpan(length));
                             IsModelRequest dataRequest = request;
                             if (TryLoadModel(model, dataRequest, simulator))
                             {
@@ -249,7 +249,7 @@ namespace Models.Systems
             return false;
         }
 
-        private readonly unsafe uint ImportModel(Entity model, Operation operation, USpan<byte> bytes, FixedString extension)
+        private readonly unsafe uint ImportModel(Entity model, Operation operation, USpan<byte> bytes, ASCIIText256 extension)
         {
             World world = model.world;
             USpan<char> extensionSpan = stackalloc char[extension.Length];
