@@ -9,8 +9,8 @@
         <NoStandardLibraries>true</NoStandardLibraries>
         <Title>Model Systems</Title>
         <Authors>popcron</Authors>
-        <Company>game-simulations</Company>
-        <RepositoryUrl>https://github.com/game-simulations/model-systems</RepositoryUrl>
+        <Company>simulation-tree</Company>
+        <RepositoryUrl>https://github.com/simulation-tree/model-systems</RepositoryUrl>
         <IsAotCompatible>True</IsAotCompatible>
         <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
         <WarningLevel>8</WarningLevel>
