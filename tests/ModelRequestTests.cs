@@ -1,4 +1,5 @@
 ﻿using Models.Components;
+using System;
 using Unmanaged;
 
 namespace Models.Tests
@@ -9,9 +10,9 @@ namespace Models.Tests
         public void EmbeddExtension()
         {
             IsModelRequest request = new("fbx", default(ASCIIText256), default);
-            USpan<char> buffer = stackalloc char[8];
-            uint bufferLength = request.CopyExtensionCharacters(buffer);
-            Assert.That(buffer.GetSpan(bufferLength).ToString(), Is.EqualTo("fbx"));
+            Span<char> buffer = stackalloc char[8];
+            int bufferLength = request.CopyExtensionCharacters(buffer);
+            Assert.That(buffer.Slice(0, bufferLength).ToString(), Is.EqualTo("fbx"));
         }
     }
 }

@@ -41,16 +41,16 @@ namespace Models.Systems
 
         void ISystem.Update(in SystemContainer systemContainer, in World world, in TimeSpan delta)
         {
-            USpan<byte> extensionBuffer = stackalloc byte[8];
+            System.Span<byte> extensionBuffer = stackalloc byte[8];
             Simulator simulator = systemContainer.simulator;
             ComponentType componentType = world.Schema.GetComponentType<IsModelRequest>();
             foreach (Chunk chunk in world.Chunks)
             {
                 if (chunk.Definition.ContainsComponent(componentType))
                 {
-                    USpan<uint> entities = chunk.Entities;
-                    USpan<IsModelRequest> components = chunk.GetComponents<IsModelRequest>(componentType);
-                    for (uint i = 0; i < entities.Length; i++)
+                    ReadOnlySpan<uint> entities = chunk.Entities;
+                    Span<IsModelRequest> components = chunk.GetComponents<IsModelRequest>(componentType);
+                    for (int i = 0; i < entities.Length; i++)
                     {
                         ref IsModelRequest request = ref components[i];
                         Entity model = new(world, entities[i]);
@@ -62,8 +62,8 @@ namespace Models.Systems
 
                         if (request.status == IsModelRequest.Status.Loading)
                         {
-                            uint length = request.CopyExtensionBytes(extensionBuffer);
-                            ASCIIText256 extension = new(extensionBuffer.GetSpan(length));
+                            int length = request.CopyExtensionBytes(extensionBuffer);
+                            ASCIIText256 extension = new(extensionBuffer.Slice(0, length));
                             IsModelRequest dataRequest = request;
                             if (TryLoadModel(model, dataRequest, simulator))
                             {
@@ -93,9 +93,9 @@ namespace Models.Systems
             {
                 if (chunk.Definition.ContainsComponent(meshComponent))
                 {
-                    USpan<uint> entities = chunk.Entities;
-                    USpan<IsMeshRequest> components = chunk.GetComponents<IsMeshRequest>(meshComponent);
-                    for (uint i = 0; i < entities.Length; i++)
+                    ReadOnlySpan<uint> entities = chunk.Entities;
+                    Span<IsMeshRequest> components = chunk.GetComponents<IsMeshRequest>(meshComponent);
+                    for (int i = 0; i < entities.Length; i++)
                     {
                         ref IsMeshRequest request = ref components[i];
                         Entity mesh = new(world, entities[i]);
@@ -162,7 +162,7 @@ namespace Models.Systems
         private readonly bool TryLoadMesh(Entity loadingMesh, IsMeshRequest request)
         {
             World world = loadingMesh.world;
-            uint index = request.meshIndex;
+            int index = request.meshIndex;
             rint modelReference = request.modelReference;
             uint modelEntity = loadingMesh.GetReference(modelReference);
 
@@ -184,39 +184,39 @@ namespace Models.Systems
             //copy each channel
             if (sourceMesh.ContainsPositions)
             {
-                USpan<MeshVertexPosition> positions = sourceMesh.GetArray<MeshVertexPosition>().AsSpan();
-                USpan<MeshVertexIndex> indices = sourceMesh.GetArray<MeshVertexIndex>().AsSpan();
+                Span<MeshVertexPosition> positions = sourceMesh.GetArray<MeshVertexPosition>().AsSpan();
+                Span<MeshVertexIndex> indices = sourceMesh.GetArray<MeshVertexIndex>().AsSpan();
                 operation.CreateOrSetArray(indices);
                 operation.CreateOrSetArray(positions);
             }
 
             if (sourceMesh.ContainsUVs)
             {
-                USpan<MeshVertexUV> uvs = sourceMesh.GetArray<MeshVertexUV>().AsSpan();
+                Span<MeshVertexUV> uvs = sourceMesh.GetArray<MeshVertexUV>().AsSpan();
                 operation.CreateOrSetArray(uvs);
             }
 
             if (sourceMesh.ContainsNormals)
             {
-                USpan<MeshVertexNormal> normals = sourceMesh.GetArray<MeshVertexNormal>().AsSpan();
+                Span<MeshVertexNormal> normals = sourceMesh.GetArray<MeshVertexNormal>().AsSpan();
                 operation.CreateOrSetArray(normals);
             }
 
             if (sourceMesh.ContainsTangents)
             {
-                USpan<MeshVertexTangent> tangents = sourceMesh.GetArray<MeshVertexTangent>().AsSpan();
+                Span<MeshVertexTangent> tangents = sourceMesh.GetArray<MeshVertexTangent>().AsSpan();
                 operation.CreateOrSetArray(tangents);
             }
 
             if (sourceMesh.ContainsBiTangents)
             {
-                USpan<MeshVertexBiTangent> biTangents = sourceMesh.GetArray<MeshVertexBiTangent>().AsSpan();
+                Span<MeshVertexBiTangent> biTangents = sourceMesh.GetArray<MeshVertexBiTangent>().AsSpan();
                 operation.CreateOrSetArray(biTangents);
             }
 
             if (sourceMesh.ContainsColors)
             {
-                USpan<MeshVertexColor> colors = sourceMesh.GetArray<MeshVertexColor>().AsSpan();
+                System.Span<MeshVertexColor> colors = sourceMesh.GetArray<MeshVertexColor>().AsSpan();
                 operation.CreateOrSetArray(colors);
             }
 
@@ -232,7 +232,7 @@ namespace Models.Systems
                 if (message.IsLoaded)
                 {
                     Operation operation = new();
-                    USpan<byte> byteData = message.Bytes;
+                    System.Span<byte> byteData = message.Bytes;
                     ImportModel(model, operation, byteData, request.Extension);
                     message.Dispose();
 
@@ -249,16 +249,16 @@ namespace Models.Systems
             return false;
         }
 
-        private readonly unsafe uint ImportModel(Entity model, Operation operation, USpan<byte> bytes, ASCIIText256 extension)
+        private readonly unsafe int ImportModel(Entity model, Operation operation, ReadOnlySpan<byte> bytes, ASCIIText256 extension)
         {
             World world = model.world;
-            USpan<char> extensionSpan = stackalloc char[extension.Length];
+            Span<char> extensionSpan = stackalloc char[extension.Length];
             extension.CopyTo(extensionSpan);
-            using Scene scene = new(bytes.As<byte>(), extensionSpan, PostProcessSteps.Triangulate);
+            using Scene scene = new(bytes, extensionSpan, PostProcessSteps.Triangulate);
             bool containsMeshes = model.ContainsArray<ModelMesh>();
-            uint existingMeshCount = containsMeshes ? model.GetArrayLength<ModelMesh>() : 0;
+            int existingMeshCount = containsMeshes ? model.GetArrayLength<ModelMesh>() : 0;
             operation.SelectEntity(model);
-            uint referenceCount = model.References.Length;
+            int referenceCount = model.References.Length;
             using List<ModelMesh> meshes = new();
             ProcessNode(scene.RootNode, scene, operation);
             operation.SelectEntity(model);
@@ -282,21 +282,21 @@ namespace Models.Systems
 
             void ProcessMesh(OpenAssetImporter.Mesh mesh, Scene scene, Operation operation, List<ModelMesh> meshes)
             {
-                uint vertexCount = (uint)mesh.VertexCount;
-                uint faceCount = (uint)mesh.FaceCount;
-                USpan<Vector3> positions = mesh.HasVertices ? mesh.Vertices : default;
-                USpan<Vector3> uvs = mesh.GetTextureCoordinates(0);
-                USpan<Vector3> normals = mesh.HasNormals ? mesh.Normals : default;
-                USpan<Vector3> tangents = mesh.HasTangents ? mesh.Tangents : default;
-                USpan<Vector3> biTangents = mesh.HasBiTangents ? mesh.BiTangents : default;
-                USpan<Vector4> colors = mesh.GetColors(0);
+                int vertexCount = mesh.VertexCount;
+                int faceCount = mesh.FaceCount;
+                ReadOnlySpan<Vector3> positions = mesh.HasVertices ? mesh.Vertices : default;
+                ReadOnlySpan<Vector3> uvs = mesh.GetTextureCoordinates(0);
+                ReadOnlySpan<Vector3> normals = mesh.HasNormals ? mesh.Normals : default;
+                ReadOnlySpan<Vector3> tangents = mesh.HasTangents ? mesh.Tangents : default;
+                ReadOnlySpan<Vector3> biTangents = mesh.HasBiTangents ? mesh.BiTangents : default;
+                ReadOnlySpan<Vector4> colors = mesh.GetColors(0);
 
-                if (uvs.Address == default)
+                if (uvs.GetPointer() == default)
                 {
                     uvs = default;
                 }
 
-                if (colors.Address == default)
+                if (colors.GetPointer() == default)
                 {
                     colors = default;
                 }
@@ -305,7 +305,7 @@ namespace Models.Systems
 
                 //todo: accuracy: should reuse based on mesh name rather than index within the list, because the amount of meshes
                 //in the source asset could change, and could possibly shift around in order
-                uint meshIndex = meshes.Count;
+                int meshIndex = meshes.Count;
                 string name = mesh.Name;
                 bool meshReused = meshIndex < existingMeshCount;
                 Entity existingMesh = default;
@@ -344,15 +344,15 @@ namespace Models.Systems
                 //fill in data
                 if (!positions.IsEmpty)
                 {
-                    operation.CreateOrSetArray(positions.As<MeshVertexPosition>());
+                    operation.CreateOrSetArray(positions.As<Vector3, MeshVertexPosition>());
 
                     using List<MeshVertexIndex> indices = new();
-                    for (uint f = 0; f < faceCount; f++)
+                    for (int f = 0; f < faceCount; f++)
                     {
-                        Face face = mesh.Faces[(int)f];
-                        for (uint i = 0; i < face.Indices.Length; i++)
+                        Face face = mesh.Faces[f];
+                        for (int i = 0; i < face.Indices.Length; i++)
                         {
-                            uint index = (uint)face.Indices[(int)i];
+                            uint index = (uint)face.Indices[i];
                             indices.Add(index);
                         }
                     }
@@ -363,7 +363,7 @@ namespace Models.Systems
                 if (!uvs.IsEmpty)
                 {
                     using Array<MeshVertexUV> uvs2d = new(vertexCount);
-                    for (uint i = 0; i < vertexCount; i++)
+                    for (int i = 0; i < vertexCount; i++)
                     {
                         Vector3 raw = uvs[i];
                         uvs2d[i] = new MeshVertexUV(new(raw.X, raw.Y));
@@ -374,22 +374,22 @@ namespace Models.Systems
 
                 if (!normals.IsEmpty)
                 {
-                    operation.CreateOrSetArray(normals.As<MeshVertexNormal>());
+                    operation.CreateOrSetArray(normals.As<Vector3, MeshVertexNormal>());
                 }
 
                 if (!tangents.IsEmpty)
                 {
-                    operation.CreateOrSetArray(tangents.As<MeshVertexTangent>());
+                    operation.CreateOrSetArray(tangents.As<Vector3, MeshVertexTangent>());
                 }
 
                 if (!biTangents.IsEmpty)
                 {
-                    operation.CreateOrSetArray(biTangents.As<MeshVertexBiTangent>());
+                    operation.CreateOrSetArray(biTangents.As<Vector3, MeshVertexBiTangent>());
                 }
 
                 if (!colors.IsEmpty)
                 {
-                    operation.CreateOrSetArray(colors.As<MeshVertexColor>());
+                    operation.CreateOrSetArray(colors.As<Vector4, MeshVertexColor>());
                 }
 
                 //Material? material = scene.MaterialCount > 0 ? scene.Materials[0] : null;
