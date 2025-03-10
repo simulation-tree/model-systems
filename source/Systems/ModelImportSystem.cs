@@ -41,7 +41,7 @@ namespace Models.Systems
 
         void ISystem.Update(in SystemContainer systemContainer, in World world, in TimeSpan delta)
         {
-            System.Span<byte> extensionBuffer = stackalloc byte[8];
+            Span<byte> extensionBuffer = stackalloc byte[8];
             Simulator simulator = systemContainer.simulator;
             ComponentType componentType = world.Schema.GetComponentType<IsModelRequest>();
             foreach (Chunk chunk in world.Chunks)
@@ -216,7 +216,7 @@ namespace Models.Systems
 
             if (sourceMesh.ContainsColors)
             {
-                System.Span<MeshVertexColor> colors = sourceMesh.GetArray<MeshVertexColor>().AsSpan();
+                Span<MeshVertexColor> colors = sourceMesh.GetArray<MeshVertexColor>().AsSpan();
                 operation.CreateOrSetArray(colors);
             }
 
@@ -229,11 +229,10 @@ namespace Models.Systems
             LoadData message = new(model.world, request.address);
             if (simulator.TryHandleMessage(ref message) != default)
             {
-                if (message.IsLoaded)
+                if (message.TryGetBytes(out ReadOnlySpan<byte> data))
                 {
                     Operation operation = new();
-                    System.Span<byte> byteData = message.Bytes;
-                    ImportModel(model, operation, byteData, request.Extension);
+                    ImportModel(model, operation, data, request.Extension);
                     message.Dispose();
 
                     operation.ClearSelection();
