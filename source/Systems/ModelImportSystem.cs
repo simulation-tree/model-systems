@@ -232,7 +232,7 @@ namespace Models.Systems
                 if (message.TryGetBytes(out ReadOnlySpan<byte> data))
                 {
                     Operation operation = new();
-                    ImportModel(model, operation, data, request.Extension);
+                    ImportModel(model, operation, data, request.extension);
                     message.Dispose();
 
                     operation.ClearSelection();
@@ -248,7 +248,7 @@ namespace Models.Systems
             return false;
         }
 
-        private readonly unsafe int ImportModel(Entity model, Operation operation, ReadOnlySpan<byte> bytes, ASCIIText256 extension)
+        private readonly unsafe int ImportModel(Entity model, Operation operation, ReadOnlySpan<byte> bytes, ASCIIText8 extension)
         {
             World world = model.world;
             Span<char> extensionSpan = stackalloc char[extension.Length];
