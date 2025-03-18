@@ -21,35 +21,39 @@ namespace Models.Systems
         private readonly Dictionary<Entity, uint> meshVersions;
         private readonly Stack<Operation> operations;
 
-        private ModelImportSystem(Dictionary<Entity, uint> modelVersions, Dictionary<Entity, uint> meshVersions, Stack<Operation> operations)
+        public ModelImportSystem()
         {
-            this.modelVersions = modelVersions;
-            this.meshVersions = meshVersions;
-            this.operations = operations;
+            modelVersions = new(4);
+            meshVersions = new(4);
+            operations = new(4);
         }
 
-        void ISystem.Start(in SystemContainer systemContainer, in World world)
+        public readonly void Dispose()
         {
-            if (systemContainer.World == world)
+            while (operations.TryPop(out Operation operation))
             {
-                Dictionary<Entity, uint> modelVersions = new();
-                Dictionary<Entity, uint> meshVersions = new();
-                Stack<Operation> operations = new();
-                systemContainer.Write(new ModelImportSystem(modelVersions, meshVersions, operations));
+                operation.Dispose();
             }
+
+            operations.Dispose();
+            meshVersions.Dispose();
+            modelVersions.Dispose();
         }
 
-        void ISystem.Update(in SystemContainer systemContainer, in World world, in TimeSpan delta)
+        void ISystem.Start(in SystemContext context, in World world)
+        {
+        }
+
+        void ISystem.Update(in SystemContext context, in World world, in TimeSpan delta)
         {
             Span<byte> extensionBuffer = stackalloc byte[8];
-            Simulator simulator = systemContainer.simulator;
-            ComponentType componentType = world.Schema.GetComponentType<IsModelRequest>();
+            int componentType = world.Schema.GetComponentType<IsModelRequest>();
             foreach (Chunk chunk in world.Chunks)
             {
                 if (chunk.Definition.ContainsComponent(componentType))
                 {
                     ReadOnlySpan<uint> entities = chunk.Entities;
-                    Span<IsModelRequest> components = chunk.GetComponents<IsModelRequest>(componentType);
+                    ComponentEnumerator<IsModelRequest> components = chunk.GetComponents<IsModelRequest>(componentType);
                     for (int i = 0; i < entities.Length; i++)
                     {
                         ref IsModelRequest request = ref components[i];
@@ -65,7 +69,7 @@ namespace Models.Systems
                             int length = request.CopyExtensionBytes(extensionBuffer);
                             ASCIIText256 extension = new(extensionBuffer.Slice(0, length));
                             IsModelRequest dataRequest = request;
-                            if (TryLoadModel(model, dataRequest, simulator))
+                            if (TryLoadModel(model, dataRequest, context))
                             {
                                 Trace.WriteLine($"Model `{model}` has been loaded");
 
@@ -88,13 +92,13 @@ namespace Models.Systems
 
             PerformOperations(world);
 
-            ComponentType meshComponent = world.Schema.GetComponentType<IsMeshRequest>();
+            int meshComponent = world.Schema.GetComponentType<IsMeshRequest>();
             foreach (Chunk chunk in world.Chunks)
             {
                 if (chunk.Definition.ContainsComponent(meshComponent))
                 {
                     ReadOnlySpan<uint> entities = chunk.Entities;
-                    Span<IsMeshRequest> components = chunk.GetComponents<IsMeshRequest>(meshComponent);
+                    ComponentEnumerator<IsMeshRequest> components = chunk.GetComponents<IsMeshRequest>(meshComponent);
                     for (int i = 0; i < entities.Length; i++)
                     {
                         ref IsMeshRequest request = ref components[i];
@@ -135,19 +139,8 @@ namespace Models.Systems
             PerformOperations(world);
         }
 
-        void ISystem.Finish(in SystemContainer systemContainer, in World world)
+        void ISystem.Finish(in SystemContext context, in World world)
         {
-            if (systemContainer.World == world)
-            {
-                while (operations.TryPop(out Operation operation))
-                {
-                    operation.Dispose();
-                }
-
-                operations.Dispose();
-                meshVersions.Dispose();
-                modelVersions.Dispose();
-            }
         }
 
         private readonly void PerformOperations(World world)
@@ -224,10 +217,10 @@ namespace Models.Systems
             return true;
         }
 
-        private bool TryLoadModel(Entity model, IsModelRequest request, Simulator simulator)
+        private bool TryLoadModel(Entity model, IsModelRequest request, SystemContext context)
         {
             LoadData message = new(model.world, request.address);
-            if (simulator.TryHandleMessage(ref message) != default)
+            if (context.TryHandleMessage(ref message) != default)
             {
                 if (message.TryGetBytes(out ReadOnlySpan<byte> data))
                 {
