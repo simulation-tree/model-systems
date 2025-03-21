@@ -177,39 +177,39 @@ namespace Models.Systems
             //copy each channel
             if (sourceMesh.ContainsPositions)
             {
-                Span<MeshVertexPosition> positions = sourceMesh.GetArray<MeshVertexPosition>().AsSpan();
-                Span<MeshVertexIndex> indices = sourceMesh.GetArray<MeshVertexIndex>().AsSpan();
+                Span<MeshVertexPosition> positions = sourceMesh.GetArray<MeshVertexPosition>();
+                Span<MeshVertexIndex> indices = sourceMesh.GetArray<MeshVertexIndex>();
                 operation.CreateOrSetArray(indices);
                 operation.CreateOrSetArray(positions);
             }
 
             if (sourceMesh.ContainsUVs)
             {
-                Span<MeshVertexUV> uvs = sourceMesh.GetArray<MeshVertexUV>().AsSpan();
+                Span<MeshVertexUV> uvs = sourceMesh.GetArray<MeshVertexUV>();
                 operation.CreateOrSetArray(uvs);
             }
 
             if (sourceMesh.ContainsNormals)
             {
-                Span<MeshVertexNormal> normals = sourceMesh.GetArray<MeshVertexNormal>().AsSpan();
+                Span<MeshVertexNormal> normals = sourceMesh.GetArray<MeshVertexNormal>();
                 operation.CreateOrSetArray(normals);
             }
 
             if (sourceMesh.ContainsTangents)
             {
-                Span<MeshVertexTangent> tangents = sourceMesh.GetArray<MeshVertexTangent>().AsSpan();
+                Span<MeshVertexTangent> tangents = sourceMesh.GetArray<MeshVertexTangent>();
                 operation.CreateOrSetArray(tangents);
             }
 
             if (sourceMesh.ContainsBiTangents)
             {
-                Span<MeshVertexBiTangent> biTangents = sourceMesh.GetArray<MeshVertexBiTangent>().AsSpan();
+                Span<MeshVertexBiTangent> biTangents = sourceMesh.GetArray<MeshVertexBiTangent>();
                 operation.CreateOrSetArray(biTangents);
             }
 
             if (sourceMesh.ContainsColors)
             {
-                Span<MeshVertexColor> colors = sourceMesh.GetArray<MeshVertexColor>().AsSpan();
+                Span<MeshVertexColor> colors = sourceMesh.GetArray<MeshVertexColor>();
                 operation.CreateOrSetArray(colors);
             }
 
