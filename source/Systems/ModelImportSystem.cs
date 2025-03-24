@@ -250,7 +250,7 @@ namespace Models.Systems
             bool containsMeshes = model.ContainsArray<ModelMesh>();
             int existingMeshCount = containsMeshes ? model.GetArrayLength<ModelMesh>() : 0;
             operation.SelectEntity(model);
-            int referenceCount = model.References.Length;
+            int referenceCount = model.ReferenceCount;
             using List<ModelMesh> meshes = new();
             ProcessNode(scene.RootNode, scene, operation);
             operation.SelectEntity(model);
