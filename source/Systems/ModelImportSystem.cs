@@ -172,7 +172,8 @@ namespace Models.Systems
             loadingMesh.TryGetComponent(out IsMesh component);
             ModelName modelName = sourceMesh.GetComponent<ModelName>();
             operation.AddOrSetComponent(modelName);
-            operation.AddOrSetComponent(component.IncrementVersion());
+            component.version++;
+            operation.AddOrSetComponent(component);
 
             //copy each channel
             if (sourceMesh.ContainsPositions)
@@ -394,7 +395,8 @@ namespace Models.Systems
                 if (existingMesh != default)
                 {
                     existingMesh.TryGetComponent(out IsMesh component);
-                    operation.AddOrSetComponent(component.IncrementVersion());
+                    component.version++;
+                    operation.AddOrSetComponent(component);
                 }
                 else
                 {
