@@ -12,9 +12,9 @@ namespace Models.Tests
     {
         static ModelSystemsTests()
         {
-            MetadataRegistry.Load<DataTypeBank>();
-            MetadataRegistry.Load<MeshesTypeBank>();
-            MetadataRegistry.Load<ModelsTypeBank>();
+            MetadataRegistry.Load<DataMetadataBank>();
+            MetadataRegistry.Load<MeshesMetadataBank>();
+            MetadataRegistry.Load<ModelsMetadataBank>();
         }
 
         protected override void SetUp()
