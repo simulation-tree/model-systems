@@ -223,11 +223,11 @@ namespace Models.Systems
             LoadData message = new(model.world, request.address);
             if (context.TryHandleMessage(ref message) != default)
             {
-                if (message.TryGetBytes(out ReadOnlySpan<byte> data))
+                if (message.TryConsume(out ByteReader data))
                 {
                     Operation operation = new();
                     ImportModel(model, operation, data, request.extension);
-                    message.Dispose();
+                    data.Dispose();
 
                     operation.ClearSelection();
                     operation.SelectEntity(model);
@@ -242,12 +242,12 @@ namespace Models.Systems
             return false;
         }
 
-        private readonly unsafe int ImportModel(Entity model, Operation operation, ReadOnlySpan<byte> bytes, ASCIIText8 extension)
+        private readonly unsafe int ImportModel(Entity model, Operation operation, ByteReader bytes, ASCIIText8 extension)
         {
             World world = model.world;
             Span<char> extensionSpan = stackalloc char[extension.Length];
             extension.CopyTo(extensionSpan);
-            using Scene scene = new(bytes, extensionSpan, PostProcessSteps.Triangulate);
+            using Scene scene = new(bytes.GetBytes(), extensionSpan, PostProcessSteps.Triangulate);
             bool containsMeshes = model.ContainsArray<ModelMesh>();
             int existingMeshCount = containsMeshes ? model.GetArrayLength<ModelMesh>() : 0;
             operation.SelectEntity(model);
