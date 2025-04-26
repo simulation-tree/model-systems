@@ -14,7 +14,7 @@ namespace Models.Tests
             DataSource entity = new(world, "cube.fbx", CubeFBX.bytes);
             Model model = new(world, "cube.fbx");
 
-            await model.UntilCompliant(Simulate, cancellation);
+            await model.UntilCompliant(Update, cancellation);
 
             Assert.That(model.IsCompliant, Is.True);
             Assert.That(model.MeshCount, Is.EqualTo(1));
@@ -32,7 +32,7 @@ namespace Models.Tests
             Model cubeModel = new(world, "cube.fbx");
             Mesh cubeMesh = new(world, cubeModel);
 
-            await cubeMesh.UntilCompliant(Simulate, cancellation);
+            await cubeMesh.UntilCompliant(Update, cancellation);
 
             Assert.That(cubeMesh.IsCompliant, Is.True);
             Assert.That(cubeMesh.VertexCount, Is.EqualTo(24));
