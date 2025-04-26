@@ -315,7 +315,7 @@ namespace Models.Systems
                 else
                 {
                     //create new mesh
-                    operation.CreateEntity();
+                    operation.CreateEntityAndSelect();
                     operation.SetParent(model);
                     operation.CreateArray<MeshVertexIndex>();
                     operation.AddComponent(new ModelName(name));
