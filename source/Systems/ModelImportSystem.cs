@@ -15,7 +15,7 @@ using Worlds;
 namespace Models.Systems
 {
     [SkipLocalsInit]
-    public readonly partial struct ModelImportSystem : ISystem
+    public partial class ModelImportSystem : ISystem, IDisposable
     {
         private readonly Dictionary<Entity, uint> modelVersions;
         private readonly Dictionary<Entity, uint> meshVersions;
@@ -28,7 +28,7 @@ namespace Models.Systems
             operations = new(4);
         }
 
-        public readonly void Dispose()
+        public void Dispose()
         {
             while (operations.TryPop(out Operation operation))
             {
@@ -40,12 +40,9 @@ namespace Models.Systems
             modelVersions.Dispose();
         }
 
-        void ISystem.Start(in SystemContext context, in World world)
+        void ISystem.Update(Simulator simulator, double deltaTime)
         {
-        }
-
-        void ISystem.Update(in SystemContext context, in World world, in TimeSpan delta)
-        {
+            World world = simulator.world;
             Span<byte> extensionBuffer = stackalloc byte[8];
             int componentType = world.Schema.GetComponentType<IsModelRequest>();
             foreach (Chunk chunk in world.Chunks)
@@ -69,7 +66,7 @@ namespace Models.Systems
                             int length = request.CopyExtensionBytes(extensionBuffer);
                             ASCIIText256 extension = new(extensionBuffer.Slice(0, length));
                             IsModelRequest dataRequest = request;
-                            if (TryLoadModel(model, dataRequest, context))
+                            if (TryLoadModel(model, dataRequest, simulator))
                             {
                                 Trace.WriteLine($"Model `{model}` has been loaded");
 
@@ -78,7 +75,7 @@ namespace Models.Systems
                             }
                             else
                             {
-                                request.duration += delta;
+                                request.duration += deltaTime;
                                 if (request.duration >= request.timeout)
                                 {
                                     Trace.TraceError($"Model `{model}` could not be loaded");
@@ -139,11 +136,7 @@ namespace Models.Systems
             PerformOperations(world);
         }
 
-        void ISystem.Finish(in SystemContext context, in World world)
-        {
-        }
-
-        private readonly void PerformOperations(World world)
+        private void PerformOperations(World world)
         {
             while (operations.TryPop(out Operation operation))
             {
@@ -152,7 +145,7 @@ namespace Models.Systems
             }
         }
 
-        private readonly bool TryLoadMesh(Entity loadingMesh, IsMeshRequest request)
+        private bool TryLoadMesh(Entity loadingMesh, IsMeshRequest request)
         {
             World world = loadingMesh.world;
             int index = request.meshIndex;
@@ -167,12 +160,16 @@ namespace Models.Systems
 
             Model model = new Entity(world, modelEntity).As<Model>();
             Meshes.Mesh sourceMesh = model[index];
+            IsMesh sourceMeshComponent = sourceMesh.GetComponent<IsMesh>();
             Operation operation = new();
             operation.SelectEntity(loadingMesh);
             loadingMesh.TryGetComponent(out IsMesh component);
             ModelName modelName = sourceMesh.GetComponent<ModelName>();
             operation.AddOrSetComponent(modelName);
             component.version++;
+            component.channels = sourceMeshComponent.channels;
+            component.vertexCount = sourceMeshComponent.vertexCount;
+            component.indexCount = sourceMeshComponent.indexCount;
             operation.AddOrSetComponent(component);
 
             //copy each channel
@@ -218,31 +215,29 @@ namespace Models.Systems
             return true;
         }
 
-        private bool TryLoadModel(Entity model, IsModelRequest request, SystemContext context)
+        private bool TryLoadModel(Entity model, IsModelRequest request, Simulator simulator)
         {
             LoadData message = new(model.world, request.address);
-            if (context.TryHandleMessage(ref message) != default)
+            simulator.Broadcast(ref message);
+            if (message.TryConsume(out ByteReader data))
             {
-                if (message.TryConsume(out ByteReader data))
-                {
-                    Operation operation = new();
-                    ImportModel(model, operation, data, request.extension);
-                    data.Dispose();
+                Operation operation = new();
+                ImportModel(model, operation, data, request.extension);
+                data.Dispose();
 
-                    operation.ClearSelection();
-                    operation.SelectEntity(model);
-                    model.TryGetComponent(out IsModel component);
-                    operation.AddOrSetComponent(component.IncrementVersion());
+                operation.ClearSelection();
+                operation.SelectEntity(model);
+                model.TryGetComponent(out IsModel component);
+                operation.AddOrSetComponent(component.IncrementVersion());
 
-                    operations.Push(operation);
-                    return true;
-                }
+                operations.Push(operation);
+                return true;
             }
 
             return false;
         }
 
-        private readonly unsafe int ImportModel(Entity model, Operation operation, ByteReader bytes, ASCIIText8 extension)
+        private unsafe int ImportModel(Entity model, Operation operation, ByteReader bytes, ASCIIText8 extension)
         {
             World world = model.world;
             Span<char> extensionSpan = stackalloc char[extension.Length];
@@ -283,6 +278,7 @@ namespace Models.Systems
                 ReadOnlySpan<Vector3> tangents = mesh.HasTangents ? mesh.Tangents : default;
                 ReadOnlySpan<Vector3> biTangents = mesh.HasBiTangents ? mesh.BiTangents : default;
                 ReadOnlySpan<Vector4> colors = mesh.GetColors(0);
+                MeshChannelMask channels = default;
 
                 if (uvs.GetPointer() == default)
                 {
@@ -334,23 +330,24 @@ namespace Models.Systems
 
                 meshes.Add(modelMesh);
 
+                using List<MeshVertexIndex> indices = new(faceCount * 3);
+                for (int f = 0; f < faceCount; f++)
+                {
+                    Face face = mesh.Faces[f];
+                    for (int i = 0; i < face.Indices.Length; i++)
+                    {
+                        uint index = (uint)face.Indices[i];
+                        indices.Add(index);
+                    }
+                }
+
+                operation.CreateOrSetArray(indices.AsSpan());
+
                 //fill in data
                 if (!positions.IsEmpty)
                 {
                     operation.CreateOrSetArray(positions.As<Vector3, MeshVertexPosition>());
-
-                    using List<MeshVertexIndex> indices = new();
-                    for (int f = 0; f < faceCount; f++)
-                    {
-                        Face face = mesh.Faces[f];
-                        for (int i = 0; i < face.Indices.Length; i++)
-                        {
-                            uint index = (uint)face.Indices[i];
-                            indices.Add(index);
-                        }
-                    }
-
-                    operation.CreateOrSetArray(indices.AsSpan());
+                    channels |= MeshChannelMask.Positions;
                 }
 
                 if (!uvs.IsEmpty)
@@ -363,26 +360,31 @@ namespace Models.Systems
                     }
 
                     operation.CreateOrSetArray(uvs2d.AsSpan());
+                    channels |= MeshChannelMask.UVs;
                 }
 
                 if (!normals.IsEmpty)
                 {
                     operation.CreateOrSetArray(normals.As<Vector3, MeshVertexNormal>());
+                    channels |= MeshChannelMask.Normals;
                 }
 
                 if (!tangents.IsEmpty)
                 {
                     operation.CreateOrSetArray(tangents.As<Vector3, MeshVertexTangent>());
+                    channels |= MeshChannelMask.Tangents;
                 }
 
                 if (!biTangents.IsEmpty)
                 {
                     operation.CreateOrSetArray(biTangents.As<Vector3, MeshVertexBiTangent>());
+                    channels |= MeshChannelMask.BiTangents;
                 }
 
                 if (!colors.IsEmpty)
                 {
                     operation.CreateOrSetArray(colors.As<Vector4, MeshVertexColor>());
+                    channels |= MeshChannelMask.Colors;
                 }
 
                 //Material? material = scene.MaterialCount > 0 ? scene.Materials[0] : null;
@@ -396,11 +398,14 @@ namespace Models.Systems
                 {
                     existingMesh.TryGetComponent(out IsMesh component);
                     component.version++;
+                    component.channels = channels;
+                    component.vertexCount = vertexCount;
+                    component.indexCount = indices.Count;
                     operation.AddOrSetComponent(component);
                 }
                 else
                 {
-                    operation.AddComponent(new IsMesh(1));
+                    operation.AddComponent(new IsMesh(0, channels, vertexCount, indices.Count));
                 }
             }
         }

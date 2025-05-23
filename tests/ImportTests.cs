@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Models.Tests
 {
-    public class ModelImportTests : ModelSystemsTests
+    public class ImportTests : ModelSystemsTests
     {
         [Test, CancelAfter(1700)]
         public async Task ImportSimpleCube(CancellationToken cancellation)
