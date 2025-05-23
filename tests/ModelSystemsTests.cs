@@ -20,14 +20,14 @@ namespace Models.Tests
         protected override void SetUp()
         {
             base.SetUp();
-            simulator.Add(new DataImportSystem());
-            simulator.Add(new ModelImportSystem());
+            Simulator.Add(new DataImportSystem());
+            Simulator.Add(new ModelImportSystem());
         }
 
         protected override void TearDown()
         {
-            simulator.Remove<ModelImportSystem>();
-            simulator.Remove<DataImportSystem>();
+            Simulator.Remove<ModelImportSystem>();
+            Simulator.Remove<DataImportSystem>();
             base.TearDown();
         }
 
