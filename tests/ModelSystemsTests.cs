@@ -1,4 +1,5 @@
 ﻿using Data;
+using Data.Messages;
 using Data.Systems;
 using Meshes;
 using Models.Systems;
@@ -10,6 +11,8 @@ namespace Models.Tests
 {
     public abstract class ModelSystemsTests : SimulationTests
     {
+        public World world;
+
         static ModelSystemsTests()
         {
             MetadataRegistry.Load<DataMetadataBank>();
@@ -20,24 +23,26 @@ namespace Models.Tests
         protected override void SetUp()
         {
             base.SetUp();
-            Simulator.Add(new DataImportSystem(Simulator));
-            Simulator.Add(new ModelImportSystem(Simulator));
+            Schema schema = new();
+            schema.Load<DataSchemaBank>();
+            schema.Load<MeshesSchemaBank>();
+            schema.Load<ModelsSchemaBank>();
+            world = new(schema);
+            Simulator.Add(new DataImportSystem(Simulator, world));
+            Simulator.Add(new ModelImportSystem(Simulator, world));
         }
 
         protected override void TearDown()
         {
             Simulator.Remove<ModelImportSystem>();
             Simulator.Remove<DataImportSystem>();
+            world.Dispose();
             base.TearDown();
         }
 
-        protected override Schema CreateSchema()
+        protected override void Update(double deltaTime)
         {
-            Schema schema = base.CreateSchema();
-            schema.Load<DataSchemaBank>();
-            schema.Load<MeshesSchemaBank>();
-            schema.Load<ModelsSchemaBank>();
-            return schema;
+            Simulator.Broadcast(new DataUpdate(deltaTime));
         }
     }
 }
