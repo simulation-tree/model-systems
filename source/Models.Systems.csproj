@@ -1,38 +1,47 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-    <PropertyGroup>
-        <TargetFramework>net9.0</TargetFramework>
-        <RootNamespace>Models.Systems</RootNamespace>
-        <ImplicitUsings>disable</ImplicitUsings>
-        <Nullable>enable</Nullable>
-        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-        <NoStandardLibraries>true</NoStandardLibraries>
-        <Title>Model Systems</Title>
-        <Authors>popcron</Authors>
-        <Company>simulation-tree</Company>
-        <RepositoryUrl>https://github.com/simulation-tree/model-systems</RepositoryUrl>
-        <IsAotCompatible>True</IsAotCompatible>
-        <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
-        <WarningLevel>8</WarningLevel>
-        <PackageId/>
-    </PropertyGroup>
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <RootNamespace>Models.Systems</RootNamespace>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NoStandardLibraries>true</NoStandardLibraries>
+    <Title>Model Systems</Title>
+    <Authors>popcron</Authors>
+    <Company>simulation-tree</Company>
+    <RepositoryUrl>https://github.com/simulation-tree/model-systems</RepositoryUrl>
+    <IsAotCompatible>True</IsAotCompatible>
+    <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
+    <WarningLevel>8</WarningLevel>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+  </PropertyGroup>
 
-    <ItemGroup>
-        <PackageReference Include="OpenAssetImporter" Version="0.0.6"/>
-    </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="OpenAssetImporter" Version="0.0.6"/>
+  </ItemGroup>
 
-    <ItemGroup>
-        <ProjectReference Include="..\..\data\core\Data.Core.csproj"/>
-        <ProjectReference Include="..\..\simulation\core\Simulation.Core.csproj"/>
-        <ProjectReference Include="..\..\models\source\Models.csproj"/>
-        <ProjectReference Include="..\..\simulation\generator\Simulation.Generator.csproj">
-            <OutputItemType>Analyzer</OutputItemType>
-            <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
-        </ProjectReference>
-        <ProjectReference Include="..\..\worlds\generator\Worlds.Generator.csproj">
-            <OutputItemType>Analyzer</OutputItemType>
-            <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
-        </ProjectReference>
-    </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\data\core\Data.Core.csproj"/>
+    <ProjectReference Include="..\..\simulation\core\Simulation.Core.csproj"/>
+    <ProjectReference Include="..\..\models\source\Models.csproj"/>
+    <ProjectReference Include="..\..\simulation\generator\Simulation.Generator.csproj">
+      <OutputItemType>Analyzer</OutputItemType>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\..\worlds\generator\Worlds.Generator.csproj">
+      <OutputItemType>Analyzer</OutputItemType>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="bin/Debug/net9.0/Models.Systems.dll" Pack="true" PackagePath="tools/debug/Models.Systems.dll" Visible="false"/>
+    <Content Include="bin/Debug/net9.0/Models.Systems.xml" Pack="true" PackagePath="tools/debug/Models.Systems.xml" Visible="false"/>
+    <Content Include="bin/Release/net9.0/Models.Systems.dll" Pack="true" PackagePath="tools/release/Models.Systems.dll" Visible="false"/>
+    <Content Include="bin/Release/net9.0/Models.Systems.xml" Pack="true" PackagePath="tools/release/Models.Systems.xml" Visible="false"/>
+    <Content Include="build/Models.Systems.targets" Pack="true" PackagePath="build/Models.Systems.targets" Visible="false"/>
+  </ItemGroup>
 
 </Project>
