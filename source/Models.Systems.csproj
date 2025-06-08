@@ -15,7 +15,7 @@
     <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
     <WarningLevel>8</WarningLevel>
     <IncludeBuildOutput>false</IncludeBuildOutput>
-    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <OutDir>bin/$(TargetFramework)/$(Configuration)</OutDir>
   </PropertyGroup>
 
   <ItemGroup>
@@ -37,11 +37,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="bin/Debug/net9.0/Models.Systems.dll" Pack="true" PackagePath="tools/debug/Models.Systems.dll" Visible="false"/>
-    <Content Include="bin/Debug/net9.0/Models.Systems.xml" Pack="true" PackagePath="tools/debug/Models.Systems.xml" Visible="false" Condition="Exists('bin/Debug/net9.0/Models.Systems.xml')"/>
-    <Content Include="bin/Release/net9.0/Models.Systems.dll" Pack="true" PackagePath="tools/release/Models.Systems.dll" Visible="false"/>
-    <Content Include="bin/Release/net9.0/Models.Systems.xml" Pack="true" PackagePath="tools/release/Models.Systems.xml" Visible="false" Condition="Exists('bin/Release/net9.0/Models.Systems.xml')"/>
-    <Content Include="build/Models.Systems.targets" Pack="true" PackagePath="build/Models.Systems.targets" Visible="false"/>
+    <Content Include="bin/**/*" Pack="true" PackagePath="lib" Visible="false"/>
+    <Content Include="buildTransitive/**/*" Pack="true" PackagePath="buildTransitive"/>
   </ItemGroup>
 
 </Project>
