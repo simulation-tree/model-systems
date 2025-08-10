@@ -3,7 +3,7 @@
 
     <ItemGroup>
         <Reference Include="Models.Systems">
-            <HintPath>$(MSBuildThisFileDirectory)..\lib\net9.0\$(Configuration)\Models.Systems.dll</HintPath>
+            <HintPath>$(MSBuildThisFileDirectory)..\lib\$(TargetFramework)\$(Configuration)\Models.Systems.dll</HintPath>
         </Reference>
     </ItemGroup>
 

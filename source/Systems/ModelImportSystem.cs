@@ -296,7 +296,7 @@ namespace Models.Systems
                 int meshIndex = meshes.Count;
                 string name = loadedMesh.Name;
                 bool meshReused = meshIndex < existingMeshCount;
-                Entity existingMesh = default;
+                Entity existingMesh;
                 ModelMesh modelMesh;
                 if (meshReused)
                 {
@@ -309,6 +309,8 @@ namespace Models.Systems
                 }
                 else
                 {
+                    existingMesh = default;
+
                     //create new mesh
                     operation.ClearSelection();
                     operation.CreateSingleEntityAndSelect();
@@ -393,7 +395,7 @@ namespace Models.Systems
                 //}
 
                 //increment mesh version
-                if (existingMesh != default)
+                if (meshReused)
                 {
                     existingMesh.TryGetComponent(meshType, out IsMesh mesh);
                     mesh.version++;

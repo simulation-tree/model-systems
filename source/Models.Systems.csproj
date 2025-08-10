@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFrameworks>net9.0;net10.0</TargetFrameworks>
     <RootNamespace>Models.Systems</RootNamespace>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>
@@ -26,14 +26,13 @@
     <ProjectReference Include="..\..\data\core\Data.Core.csproj"/>
     <ProjectReference Include="..\..\simulation\core\Simulation.Core.csproj"/>
     <ProjectReference Include="..\..\models\source\Models.csproj"/>
-    <ProjectReference Include="..\..\simulation\generator\Simulation.Generator.csproj">
-      <OutputItemType>Analyzer</OutputItemType>
-      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
-    </ProjectReference>
-    <ProjectReference Include="..\..\worlds\generator\Worlds.Generator.csproj">
-      <OutputItemType>Analyzer</OutputItemType>
-      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
-    </ProjectReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Analyzer Include="..\..\unmanaged\generator\bin\$(Configuration)\netstandard2.0\Unmanaged.Generator.dll"/>
+    <Analyzer Include="..\..\worlds\generator\bin\$(Configuration)\netstandard2.0\Worlds.Generator.dll"/>
+    <Analyzer Include="..\..\types\generator\bin\$(Configuration)\netstandard2.0\Types.Generator.dll"/>
+    <Analyzer Include="..\..\simulation\generator\bin\$(Configuration)\netstandard2.0\Simulation.Generator.dll"/>
   </ItemGroup>
 
   <ItemGroup>
