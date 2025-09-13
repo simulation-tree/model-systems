@@ -58,7 +58,7 @@ namespace Models.Systems
             for (int c = 0; c < chunks.Length; c++)
             {
                 Chunk chunk = chunks[c];
-                if (chunk.Definition.ContainsComponent(modelRequestType))
+                if (chunk.componentTypes.Contains(modelRequestType))
                 {
                     ReadOnlySpan<uint> entities = chunk.Entities;
                     ComponentEnumerator<IsModelRequest> components = chunk.GetComponents<IsModelRequest>(modelRequestType);
@@ -104,7 +104,7 @@ namespace Models.Systems
             for (int c = 0; c < chunks.Length; c++)
             {
                 Chunk chunk = chunks[c];
-                if (chunk.Definition.ContainsComponent(meshRequestType))
+                if (chunk.componentTypes.Contains(meshRequestType))
                 {
                     ReadOnlySpan<uint> entities = chunk.Entities;
                     ComponentEnumerator<IsMeshRequest> components = chunk.GetComponents<IsMeshRequest>(meshRequestType);
