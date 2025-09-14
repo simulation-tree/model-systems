@@ -16,6 +16,7 @@
     <WarningLevel>8</WarningLevel>
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <OutDir>bin/$(TargetFramework)/$(Configuration)</OutDir>
+    <PackageId>SimulationTree.Models.Systems</PackageId>
   </PropertyGroup>
 
   <ItemGroup>
