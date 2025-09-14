@@ -9,7 +9,7 @@
     <NoStandardLibraries>true</NoStandardLibraries>
     <Title>Model Systems</Title>
     <Authors>popcron</Authors>
-    <Company>simulation-tree</Company>
+    <Company>Simulation Tree</Company>
     <RepositoryUrl>https://github.com/simulation-tree/model-systems</RepositoryUrl>
     <IsAotCompatible>True</IsAotCompatible>
     <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
